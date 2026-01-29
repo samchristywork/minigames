@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minesweeper</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #c0c0c0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .container {
+            background: #c0c0c0;
+            padding: 10px;
+            border: 3px solid;
+            border-color: #fff #808080 #808080 #fff;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #c0c0c0;
+            border: 3px solid;
+            border-color: #808080 #fff #fff #808080;
+        }
+        .counter {
+            background: #000;
+            color: #f00;
+            font-family: 'Consolas', monospace;
+            font-size: 28px;
+            padding: 2px 6px;
+            min-width: 50px;
+            text-align: center;
+            border: 2px solid;
+            border-color: #808080 #fff #fff #808080;
+        }
+        #face-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            cursor: pointer;
+            border: 3px solid;
+            border-color: #fff #808080 #808080 #fff;
+            background: #c0c0c0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #face-btn:active {
+            border-color: #808080 #fff #fff #808080;
+        }
+        .difficulty {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .difficulty button {
+            padding: 6px 12px;
+            cursor: pointer;
+            border: 2px solid;
+            border-color: #fff #808080 #808080 #fff;
+            background: #c0c0c0;
+            font-size: 12px;
+        }
+        .difficulty button:active, .difficulty button.active {
+            border-color: #808080 #fff #fff #808080;
+            background: #a0a0a0;
+        }
+        .grid-container {
+            border: 3px solid;
+            border-color: #808080 #fff #fff #808080;
+            display: inline-block;
+        }
+        .grid {
+            display: grid;
+            gap: 0;
+        }
+        .cell {
+            width: 24px;
+            height: 24px;
+            border: 2px solid;
+            border-color: #fff #808080 #808080 #fff;
+            background: #c0c0c0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .cell.revealed {
+            border: 1px solid #808080;
+            background: #c0c0c0;
+        }
+        .cell.mine {
+            background: #f00;
+        }
+        .cell.flagged::before {
+            content: "🚩";
+            font-size: 14px;
+        }
+        .cell.question::before {
+            content: "?";
+            color: #000;
+            font-size: 16px;
+        }
+        .cell[data-num="1"] { color: #0000ff; }
+        .cell[data-num="2"] { color: #008000; }
+        .cell[data-num="3"] { color: #ff0000; }
+        .cell[data-num="4"] { color: #000080; }
+        .cell[data-num="5"] { color: #800000; }
+        .cell[data-num="6"] { color: #008080; }
+        .cell[data-num="7"] { color: #000000; }
+        .cell[data-num="8"] { color: #808080; }
+        #instructions {
+            margin-top: 15px;
+            color: #444;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="difficulty">
+            <button data-diff="easy" class="active">Easy</button>
+            <button data-diff="medium">Medium</button>
+            <button data-diff="hard">Hard</button>
+        </div>
+        <div class="header">
+            <div class="counter" id="mines-counter">010</div>
+            <button id="face-btn">😊</button>
+            <div class="counter" id="timer">000</div>
+        </div>
+        <div class="grid-container">
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+    <div id="instructions">Left click to reveal. Right click to flag. Clear all non-mine cells to win!</div>
+
+    <script>
+        const gridEl = document.getElementById('grid');
+        const faceBtn = document.getElementById('face-btn');
+        const minesCounter = document.getElementById('mines-counter');
+        const timerEl = document.getElementById('timer');
+        const diffButtons = document.querySelectorAll('.difficulty button');
+
+        const DIFFICULTIES = {
+            easy: { rows: 9, cols: 9, mines: 10 },
+            medium: { rows: 16, cols: 16, mines: 40 },
+            hard: { rows: 16, cols: 30, mines: 99 }
+        };
+
+        let config = DIFFICULTIES.easy;
+        let grid = [];
+        let revealed = [];
+        let flagged = [];
+        let questioned = [];
+        let gameOver = false;
+        let gameWon = false;
+        let firstClick = true;
+        let timer = 0;
+        let timerInterval = null;
+        let flagCount = 0;
+
+        function init() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timer = 0;
+            timerEl.textContent = '000';
+
+            grid = [];
+            revealed = [];
+            flagged = [];
+            questioned = [];
+            gameOver = false;
+            gameWon = false;
+            firstClick = true;
+            flagCount = 0;
+
+            for (let y = 0; y < config.rows; y++) {
+                grid[y] = [];
+                revealed[y] = [];
+                flagged[y] = [];
+                questioned[y] = [];
+                for (let x = 0; x < config.cols; x++) {
+                    grid[y][x] = 0;
+                    revealed[y][x] = false;
+                    flagged[y][x] = false;
+                    questioned[y][x] = false;
+                }
+            }
+
+            updateMinesCounter();
+            faceBtn.textContent = '😊';
+            render();
+        }
+
+        function placeMines(excludeX, excludeY) {
+            let placed = 0;
+            while (placed < config.mines) {
+                const x = Math.floor(Math.random() * config.cols);
+                const y = Math.floor(Math.random() * config.rows);
+
+                // Don't place on first click or adjacent cells
+                if (Math.abs(x - excludeX) <= 1 && Math.abs(y - excludeY) <= 1) continue;
+                if (grid[y][x] === -1) continue;
+
+                grid[y][x] = -1;
+                placed++;
+            }
+
+            // Calculate numbers
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (grid[y][x] === -1) continue;
+                    grid[y][x] = countAdjacentMines(x, y);
+                }
+            }
+        }
+
+        function countAdjacentMines(x, y) {
+            let count = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < config.cols && ny >= 0 && ny < config.rows) {
+                        if (grid[ny][nx] === -1) count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function reveal(x, y) {
+            if (x < 0 || x >= config.cols || y < 0 || y >= config.rows) return;
+            if (revealed[y][x] || flagged[y][x] || gameOver) return;
+
+            revealed[y][x] = true;
+
+            if (grid[y][x] === -1) {
+                // Hit a mine
+                gameOver = true;
+                faceBtn.textContent = '😵';
+                clearInterval(timerInterval);
+                revealAllMines();
+                return;
+            }
+
+            if (grid[y][x] === 0) {
+                // Flood fill for empty cells
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        reveal(x + dx, y + dy);
+                    }
+                }
+            }
+
+            checkWin();
+        }
+
+        function revealAllMines() {
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (grid[y][x] === -1) {
+                        revealed[y][x] = true;
+                    }
+                }
+            }
+            render();
+        }
+
+        function checkWin() {
+            let unrevealedSafe = 0;
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    if (!revealed[y][x] && grid[y][x] !== -1) {
+                        unrevealedSafe++;
+                    }
+                }
+            }
+
+            if (unrevealedSafe === 0) {
+                gameWon = true;
+                gameOver = true;
+                faceBtn.textContent = '😎';
+                clearInterval(timerInterval);
+                // Flag all remaining mines
+                for (let y = 0; y < config.rows; y++) {
+                    for (let x = 0; x < config.cols; x++) {
+                        if (grid[y][x] === -1) {
+                            flagged[y][x] = true;
+                        }
+                    }
+                }
+                flagCount = config.mines;
+                updateMinesCounter();
+                render();
+            }
+        }
+
+        function toggleFlag(x, y) {
+            if (revealed[y][x] || gameOver) return;
+
+            if (!flagged[y][x] && !questioned[y][x]) {
+                flagged[y][x] = true;
+                flagCount++;
+            } else if (flagged[y][x]) {
+                flagged[y][x] = false;
+                questioned[y][x] = true;
+                flagCount--;
+            } else {
+                questioned[y][x] = false;
+            }
+
+            updateMinesCounter();
+            render();
+        }
+
+        function chordReveal(x, y) {
+            if (!revealed[y][x] || grid[y][x] <= 0) return;
+
+            // Count adjacent flags
+            let adjacentFlags = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < config.cols && ny >= 0 && ny < config.rows) {
+                        if (flagged[ny][nx]) adjacentFlags++;
+                    }
+                }
+            }
+
+            if (adjacentFlags === grid[y][x]) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < config.cols && ny >= 0 && ny < config.rows) {
+                            if (!flagged[ny][nx]) {
+                                reveal(nx, ny);
+                            }
+                        }
+                    }
+                }
+                render();
+            }
+        }
+
+        function updateMinesCounter() {
+            const remaining = config.mines - flagCount;
+            minesCounter.textContent = String(Math.max(0, remaining)).padStart(3, '0');
+        }
+
+        function startTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                timer++;
+                if (timer > 999) timer = 999;
+                timerEl.textContent = String(timer).padStart(3, '0');
+            }, 1000);
+        }
+
+        function render() {
+            gridEl.style.gridTemplateColumns = `repeat(${config.cols}, 24px)`;
+            gridEl.innerHTML = '';
+
+            for (let y = 0; y < config.rows; y++) {
+                for (let x = 0; x < config.cols; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    if (revealed[y][x]) {
+                        cell.classList.add('revealed');
+                        if (grid[y][x] === -1) {
+                            cell.classList.add('mine');
+                            cell.textContent = '💣';
+                        } else if (grid[y][x] > 0) {
+                            cell.textContent = grid[y][x];
+                            cell.dataset.num = grid[y][x];
+                        }
+                    } else if (flagged[y][x]) {
+                        cell.classList.add('flagged');
+                    } else if (questioned[y][x]) {
+                        cell.classList.add('question');
+                    }
+
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        gridEl.addEventListener('mousedown', (e) => {
+            if (!gameOver && e.target.classList.contains('cell')) {
+                faceBtn.textContent = '😮';
+            }
+        });
+
+        gridEl.addEventListener('mouseup', () => {
+            if (!gameOver) {
+                faceBtn.textContent = '😊';
+            }
+        });
+
+        gridEl.addEventListener('mouseleave', () => {
+            if (!gameOver) {
+                faceBtn.textContent = '😊';
+            }
+        });
+
+        gridEl.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('cell')) return;
+
+            const x = parseInt(e.target.dataset.x);
+            const y = parseInt(e.target.dataset.y);
+
+            if (firstClick) {
+                firstClick = false;
+                placeMines(x, y);
+                startTimer();
+            }
+
+            if (revealed[y][x]) {
+                chordReveal(x, y);
+            } else {
+                reveal(x, y);
+            }
+            render();
+        });
+
+        gridEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (!e.target.classList.contains('cell')) return;
+
+            const x = parseInt(e.target.dataset.x);
+            const y = parseInt(e.target.dataset.y);
+
+            if (firstClick) return;
+            toggleFlag(x, y);
+        });
+
+        faceBtn.addEventListener('click', init);
+
+        diffButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                diffButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                config = DIFFICULTIES[btn.dataset.diff];
+                init();
+            });
+        });
+
+        init();
+    </script>
+</body>
+</html>
