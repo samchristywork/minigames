@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        h1 {
+            color: #fff;
+            margin: 0 0 15px 0;
+            font-size: 36px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .mode-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .mode-select button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .mode-select button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .mode-select button.active {
+            background: #ffd600;
+            color: #1a237e;
+        }
+        .status {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 15px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-disc {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            box-shadow: inset 0 -3px 6px rgba(0,0,0,0.3);
+        }
+        .status-disc.red { background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%); }
+        .status-disc.yellow { background: linear-gradient(135deg, #ffeb3b 0%, #ffc107 100%); }
+        .board-container {
+            position: relative;
+        }
+        .preview-row {
+            display: flex;
+            height: 50px;
+            margin-bottom: 5px;
+        }
+        .preview-cell {
+            width: 70px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-disc {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .preview-disc.show {
+            opacity: 0.6;
+        }
+        .preview-disc.red { background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%); }
+        .preview-disc.yellow { background: linear-gradient(135deg, #ffeb3b 0%, #ffc107 100%); }
+        .board {
+            background: linear-gradient(180deg, #1565c0 0%, #0d47a1 100%);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.1);
+        }
+        .row {
+            display: flex;
+        }
+        .cell {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .cell::before {
+            content: '';
+            width: 58px;
+            height: 58px;
+            background: #1a237e;
+            border-radius: 50%;
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.5);
+        }
+        .disc {
+            position: absolute;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3), inset 0 -4px 8px rgba(0,0,0,0.2);
+        }
+        .disc.red {
+            background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+        }
+        .disc.yellow {
+            background: linear-gradient(135deg, #ffeb3b 0%, #ffc107 100%);
+        }
+        .disc.dropping {
+            animation: drop 0.4s ease-in forwards;
+        }
+        .disc.winning {
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes drop {
+            0% { transform: translateY(-400px); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+            100% { transform: scale(1.08); box-shadow: 0 0 20px rgba(255,255,255,0.6); }
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .controls button {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #4caf50;
+            color: #fff;
+            box-shadow: 0 4px 0 #388e3c;
+            transition: all 0.1s;
+        }
+        .controls button:hover {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #388e3c;
+        }
+        .scores {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+            color: #fff;
+        }
+        .score-box {
+            text-align: center;
+        }
+        .score-box .label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .score-box .value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        #instructions {
+            color: rgba(255,255,255,0.7);
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Connect Four</h1>
+    <div class="mode-select">
+        <button data-mode="pvp" class="active">2 Players</button>
+        <button data-mode="easy">vs CPU (Easy)</button>
+        <button data-mode="hard">vs CPU (Hard)</button>
+    </div>
+    <div class="status" id="status">
+        <span id="status-text">Red's turn</span>
+        <div class="status-disc red" id="status-disc"></div>
+    </div>
+    <div class="board-container">
+        <div class="preview-row" id="preview"></div>
+        <div class="board" id="board"></div>
+    </div>
+    <div class="controls">
+        <button id="new-game">New Game</button>
+    </div>
+    <div class="scores">
+        <div class="score-box">
+            <div class="label"><div class="status-disc red"></div> Red</div>
+            <div class="value" id="red-score">0</div>
+        </div>
+        <div class="score-box">
+            <div class="label"><div class="status-disc yellow"></div> Yellow</div>
+            <div class="value" id="yellow-score">0</div>
+        </div>
+    </div>
+    <div id="instructions">Click a column to drop your disc. Get 4 in a row to win!</div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 7;
+
+        const boardEl = document.getElementById('board');
+        const previewEl = document.getElementById('preview');
+        const statusText = document.getElementById('status-text');
+        const statusDisc = document.getElementById('status-disc');
+        const redScoreEl = document.getElementById('red-score');
+        const yellowScoreEl = document.getElementById('yellow-score');
+        const modeButtons = document.querySelectorAll('.mode-select button');
+
+        let board = [];
+        let currentPlayer = 'red';
+        let gameOver = false;
+        let mode = 'pvp';
+        let scores = { red: 0, yellow: 0 };
+        let canPlay = true;
+
+        function init() {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            currentPlayer = 'red';
+            gameOver = false;
+            canPlay = true;
+            updateStatus();
+            render();
+        }
+
+        function render() {
+            // Preview row
+            previewEl.innerHTML = '';
+            for (let col = 0; col < COLS; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'preview-cell';
+                cell.innerHTML = `<div class="preview-disc ${currentPlayer}"></div>`;
+                cell.addEventListener('mouseenter', () => showPreview(col));
+                cell.addEventListener('mouseleave', hidePreview);
+                cell.addEventListener('click', () => dropDisc(col));
+                previewEl.appendChild(cell);
+            }
+
+            // Board
+            boardEl.innerHTML = '';
+            for (let row = 0; row < ROWS; row++) {
+                const rowEl = document.createElement('div');
+                rowEl.className = 'row';
+
+                for (let col = 0; col < COLS; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.col = col;
+
+                    if (board[row][col]) {
+                        const disc = document.createElement('div');
+                        disc.className = `disc ${board[row][col]}`;
+                        disc.dataset.row = row;
+                        disc.dataset.col = col;
+                        cell.appendChild(disc);
+                    }
+
+                    cell.addEventListener('click', () => dropDisc(col));
+                    cell.addEventListener('mouseenter', () => showPreview(col));
+                    cell.addEventListener('mouseleave', hidePreview);
+                    rowEl.appendChild(cell);
+                }
+
+                boardEl.appendChild(rowEl);
+            }
+        }
+
+        function showPreview(col) {
+            if (gameOver || !canPlay) return;
+            if (board[0][col]) return; // Column full
+
+            const previews = previewEl.querySelectorAll('.preview-disc');
+            previews.forEach((p, i) => {
+                p.classList.toggle('show', i === col);
+            });
+        }
+
+        function hidePreview() {
+            const previews = previewEl.querySelectorAll('.preview-disc');
+            previews.forEach(p => p.classList.remove('show'));
+        }
+
+        function dropDisc(col) {
+            if (gameOver || !canPlay) return;
+            if (board[0][col]) return; // Column full
+
+            // Find lowest empty row
+            let row = ROWS - 1;
+            while (row >= 0 && board[row][col]) {
+                row--;
+            }
+
+            if (row < 0) return;
+
+            canPlay = false;
+            board[row][col] = currentPlayer;
+            render();
+
+            // Animate drop
+            const disc = boardEl.querySelector(`.disc[data-row="${row}"][data-col="${col}"]`);
+            if (disc) {
+                disc.classList.add('dropping');
+            }
+
+            setTimeout(() => {
+                const winner = checkWin(row, col);
+                if (winner) {
+                    gameOver = true;
+                    highlightWin(winner);
+                    scores[currentPlayer]++;
+                    updateScores();
+                    statusText.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)} wins!`;
+                    canPlay = true;
+                } else if (checkDraw()) {
+                    gameOver = true;
+                    statusText.textContent = "It's a draw!";
+                    statusDisc.className = 'status-disc';
+                    canPlay = true;
+                } else {
+                    currentPlayer = currentPlayer === 'red' ? 'yellow' : 'red';
+                    updateStatus();
+
+                    if (mode !== 'pvp' && currentPlayer === 'yellow') {
+                        setTimeout(cpuMove, 500);
+                    } else {
+                        canPlay = true;
+                    }
+                }
+            }, 400);
+        }
+
+        function checkWin(row, col) {
+            const player = board[row][col];
+            const directions = [
+                [[0, 1], [0, -1]],   // Horizontal
+                [[1, 0], [-1, 0]],   // Vertical
+                [[1, 1], [-1, -1]], // Diagonal \
+                [[1, -1], [-1, 1]]  // Diagonal /
+            ];
+
+            for (const [dir1, dir2] of directions) {
+                const line = [[row, col]];
+
+                for (const [dr, dc] of [dir1, dir2]) {
+                    let r = row + dr;
+                    let c = col + dc;
+                    while (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
+                        line.push([r, c]);
+                        r += dr;
+                        c += dc;
+                    }
+                }
+
+                if (line.length >= 4) {
+                    return line;
+                }
+            }
+
+            return null;
+        }
+
+        function checkDraw() {
+            return board[0].every(cell => cell !== null);
+        }
+
+        function highlightWin(cells) {
+            for (const [row, col] of cells) {
+                const disc = boardEl.querySelector(`.disc[data-row="${row}"][data-col="${col}"]`);
+                if (disc) {
+                    disc.classList.add('winning');
+                }
+            }
+        }
+
+        function updateStatus() {
+            statusText.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)}'s turn`;
+            statusDisc.className = `status-disc ${currentPlayer}`;
+
+            // Update preview color
+            const previews = previewEl.querySelectorAll('.preview-disc');
+            previews.forEach(p => {
+                p.className = `preview-disc ${currentPlayer}`;
+            });
+        }
+
+        function updateScores() {
+            redScoreEl.textContent = scores.red;
+            yellowScoreEl.textContent = scores.yellow;
+        }
+
+        function cpuMove() {
+            if (gameOver) return;
+
+            let col;
+
+            if (mode === 'hard') {
+                col = getBestMove();
+            } else {
+                // Easy: random valid move
+                const validCols = [];
+                for (let c = 0; c < COLS; c++) {
+                    if (!board[0][c]) validCols.push(c);
+                }
+                col = validCols[Math.floor(Math.random() * validCols.length)];
+            }
+
+            dropDisc(col);
+        }
+
+        function getBestMove() {
+            // Check for winning move
+            for (let col = 0; col < COLS; col++) {
+                if (board[0][col]) continue;
+                const row = getDropRow(col);
+                board[row][col] = 'yellow';
+                if (checkWin(row, col)) {
+                    board[row][col] = null;
+                    return col;
+                }
+                board[row][col] = null;
+            }
+
+            // Block opponent's winning move
+            for (let col = 0; col < COLS; col++) {
+                if (board[0][col]) continue;
+                const row = getDropRow(col);
+                board[row][col] = 'red';
+                if (checkWin(row, col)) {
+                    board[row][col] = null;
+                    return col;
+                }
+                board[row][col] = null;
+            }
+
+            // Prefer center columns
+            const preference = [3, 2, 4, 1, 5, 0, 6];
+            for (const col of preference) {
+                if (!board[0][col]) return col;
+            }
+
+            return 0;
+        }
+
+        function getDropRow(col) {
+            let row = ROWS - 1;
+            while (row >= 0 && board[row][col]) {
+                row--;
+            }
+            return row;
+        }
+
+        // Event listeners
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                mode = btn.dataset.mode;
+                scores = { red: 0, yellow: 0 };
+                updateScores();
+                init();
+            });
+        });
+
+        document.getElementById('new-game').addEventListener('click', init);
+
+        init();
+    </script>
+</body>
+</html>
