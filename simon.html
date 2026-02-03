@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simon Says</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        h1 {
+            color: #fff;
+            margin: 0 0 20px 0;
+            font-size: 36px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .stats {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 25px;
+            color: #fff;
+            font-size: 20px;
+        }
+        .stat span {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .game-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+        }
+        .simon {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            background: #333;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .pad {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            cursor: pointer;
+            transition: filter 0.1s, transform 0.1s;
+            opacity: 0.6;
+        }
+        .pad:hover {
+            opacity: 0.8;
+        }
+        .pad.active {
+            opacity: 1;
+            filter: brightness(1.5);
+            transform: scale(1.02);
+        }
+        .pad.disabled {
+            cursor: not-allowed;
+        }
+        .green {
+            top: 5px;
+            left: 5px;
+            background: #00c853;
+            border-radius: 100% 0 0 0;
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 90% 100%, 0 100%);
+        }
+        .red {
+            top: 5px;
+            right: 5px;
+            background: #ff1744;
+            border-radius: 0 100% 0 0;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 10% 100%, 0 90%);
+        }
+        .yellow {
+            bottom: 5px;
+            left: 5px;
+            background: #ffd600;
+            border-radius: 0 0 0 100%;
+            clip-path: polygon(0 0, 90% 0, 100% 10%, 100% 100%, 0 100%);
+        }
+        .blue {
+            bottom: 5px;
+            right: 5px;
+            background: #2979ff;
+            border-radius: 0 0 100% 0;
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%, 0 10%);
+        }
+        .center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            background: #222;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+        .center-display {
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+            padding: 5px;
+        }
+        .center-score {
+            color: #ffd700;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .start-btn {
+            margin-top: 5px;
+            padding: 8px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            background: #4caf50;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .start-btn:hover {
+            background: #66bb6a;
+            transform: scale(1.05);
+        }
+        .start-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .mode-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .mode-select button {
+            padding: 8px 16px;
+            font-size: 13px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .mode-select button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .mode-select button.active {
+            background: #ffd600;
+            color: #1a1a2e;
+        }
+        .message {
+            color: #fff;
+            font-size: 18px;
+            margin-top: 25px;
+            height: 24px;
+        }
+        .message.error {
+            color: #ff5252;
+        }
+        .message.success {
+            color: #69f0ae;
+        }
+        #instructions {
+            color: #888;
+            margin-top: 20px;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simon Says</h1>
+    <div class="mode-select">
+        <button data-mode="classic" class="active">Classic</button>
+        <button data-mode="strict">Strict</button>
+        <button data-mode="speed">Speed</button>
+    </div>
+    <div class="stats">
+        <div class="stat">Round: <span id="round">0</span></div>
+        <div class="stat">Best: <span id="best">0</span></div>
+    </div>
+    <div class="game-container">
+        <div class="simon">
+            <div class="pad green" data-color="green"></div>
+            <div class="pad red" data-color="red"></div>
+            <div class="pad yellow" data-color="yellow"></div>
+            <div class="pad blue" data-color="blue"></div>
+            <div class="center">
+                <div class="center-display">SIMON</div>
+                <div class="center-score" id="score">0</div>
+                <button class="start-btn" id="start-btn">START</button>
+            </div>
+        </div>
+    </div>
+    <div class="message" id="message"></div>
+    <div id="instructions">Watch the pattern, then repeat it. Don't make a mistake!</div>
+
+    <script>
+        const pads = document.querySelectorAll('.pad');
+        const startBtn = document.getElementById('start-btn');
+        const roundEl = document.getElementById('round');
+        const bestEl = document.getElementById('best');
+        const scoreEl = document.getElementById('score');
+        const messageEl = document.getElementById('message');
+        const modeButtons = document.querySelectorAll('.mode-select button');
+
+        const COLORS = ['green', 'red', 'yellow', 'blue'];
+        const FREQUENCIES = {
+            green: 392,   // G4
+            red: 329.63,  // E4
+            yellow: 261.63, // C4
+            blue: 220     // A3
+        };
+
+        let audioCtx = null;
+        let sequence = [];
+        let playerIndex = 0;
+        let round = 0;
+        let best = parseInt(localStorage.getItem('simon-best')) || 0;
+        let mode = 'classic';
+        let isPlaying = false;
+        let canInput = false;
+        let playbackSpeed = 600;
+
+        bestEl.textContent = best;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTone(color, duration = 300) {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = FREQUENCIES[color];
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration / 1000);
+        }
+
+        function playErrorSound() {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.value = 100;
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function flashPad(color, duration = 300) {
+            const pad = document.querySelector(`.pad.${color}`);
+            pad.classList.add('active');
+            playTone(color, duration);
+
+            setTimeout(() => {
+                pad.classList.remove('active');
+            }, duration);
+        }
+
+        function addToSequence() {
+            const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+            sequence.push(randomColor);
+        }
+
+        async function playSequence() {
+            isPlaying = true;
+            canInput = false;
+            setMessage('Watch carefully...', '');
+
+            pads.forEach(p => p.classList.add('disabled'));
+
+            await sleep(500);
+
+            for (let i = 0; i < sequence.length; i++) {
+                flashPad(sequence[i], playbackSpeed * 0.6);
+                await sleep(playbackSpeed);
+            }
+
+            isPlaying = false;
+            canInput = true;
+            playerIndex = 0;
+            pads.forEach(p => p.classList.remove('disabled'));
+            setMessage('Your turn!', 'success');
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function handlePadClick(color) {
+            if (!canInput || isPlaying) return;
+
+            flashPad(color, 200);
+
+            if (color === sequence[playerIndex]) {
+                playerIndex++;
+
+                if (playerIndex === sequence.length) {
+                    // Completed round
+                    canInput = false;
+                    round++;
+                    updateDisplay();
+                    setMessage('Correct! Get ready...', 'success');
+
+                    // Speed up in speed mode
+                    if (mode === 'speed') {
+                        playbackSpeed = Math.max(200, playbackSpeed - 30);
+                    }
+
+                    setTimeout(() => {
+                        addToSequence();
+                        playSequence();
+                    }, 1000);
+                }
+            } else {
+                // Wrong!
+                handleError();
+            }
+        }
+
+        function handleError() {
+            canInput = false;
+            playErrorSound();
+            flashAllPads();
+            setMessage('Wrong! Game Over', 'error');
+
+            if (round > best) {
+                best = round;
+                localStorage.setItem('simon-best', best);
+                bestEl.textContent = best;
+                setMessage('Wrong! New High Score: ' + best, 'error');
+            }
+
+            if (mode === 'strict') {
+                // Game over in strict mode
+                setTimeout(() => {
+                    resetGame();
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'START';
+                }, 1500);
+            } else {
+                // Replay sequence in classic mode
+                setTimeout(() => {
+                    setMessage('Try again...', '');
+                    playSequence();
+                }, 1500);
+            }
+        }
+
+        function flashAllPads() {
+            pads.forEach(pad => {
+                pad.classList.add('active');
+                setTimeout(() => pad.classList.remove('active'), 500);
+            });
+        }
+
+        function resetGame() {
+            sequence = [];
+            playerIndex = 0;
+            round = 0;
+            playbackSpeed = mode === 'speed' ? 500 : 600;
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            roundEl.textContent = round;
+            scoreEl.textContent = round;
+        }
+
+        function setMessage(text, type) {
+            messageEl.textContent = text;
+            messageEl.className = 'message' + (type ? ' ' + type : '');
+        }
+
+        function startGame() {
+            initAudio();
+            resetGame();
+            startBtn.disabled = true;
+            startBtn.textContent = '...';
+            setMessage('', '');
+
+            addToSequence();
+            playSequence();
+        }
+
+        // Event listeners
+        pads.forEach(pad => {
+            pad.addEventListener('click', () => {
+                handlePadClick(pad.dataset.color);
+            });
+
+            pad.addEventListener('mousedown', () => {
+                if (canInput && !isPlaying) {
+                    pad.classList.add('active');
+                }
+            });
+
+            pad.addEventListener('mouseup', () => {
+                pad.classList.remove('active');
+            });
+
+            pad.addEventListener('mouseleave', () => {
+                pad.classList.remove('active');
+            });
+        });
+
+        startBtn.addEventListener('click', startGame);
+
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                mode = btn.dataset.mode;
+
+                resetGame();
+                startBtn.disabled = false;
+                startBtn.textContent = 'START';
+                setMessage('', '');
+
+                // Update instructions based on mode
+                const instructions = {
+                    classic: "Watch the pattern, then repeat it. Mistakes let you retry.",
+                    strict: "One mistake and it's game over! No retries.",
+                    speed: "Pattern gets faster each round. Keep up!"
+                };
+                document.getElementById('instructions').textContent = instructions[mode];
+            });
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (!canInput || isPlaying) return;
+
+            const keyMap = {
+                'q': 'green',
+                'w': 'red',
+                'a': 'yellow',
+                's': 'blue',
+                '1': 'green',
+                '2': 'red',
+                '3': 'yellow',
+                '4': 'blue'
+            };
+
+            const color = keyMap[e.key.toLowerCase()];
+            if (color) {
+                handlePadClick(color);
+            }
+        });
+    </script>
+</body>
+</html>
