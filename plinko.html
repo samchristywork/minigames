@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plinko</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        h1 {
+            color: #ffd700;
+            margin: 0 0 15px 0;
+            font-size: 36px;
+            text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+        }
+        .hud {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 18px;
+        }
+        .stat {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+        .stat span {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .game-container {
+            position: relative;
+        }
+        canvas {
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .drop-zone {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .drop-btn {
+            width: 40px;
+            height: 35px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: linear-gradient(180deg, #ff6b6b 0%, #c0392b 100%);
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.2s;
+            box-shadow: 0 3px 0 #922b21;
+        }
+        .drop-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 0 #922b21;
+        }
+        .drop-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #922b21;
+        }
+        .drop-btn:disabled {
+            background: #666;
+            box-shadow: 0 3px 0 #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .controls button {
+            padding: 12px 25px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #2e7d32;
+            transition: all 0.2s;
+        }
+        .controls button:hover {
+            transform: translateY(-2px);
+        }
+        .controls button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2e7d32;
+        }
+        .balls-remaining {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        #instructions {
+            color: #888;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .score-popup {
+            position: absolute;
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            animation: floatUp 1s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Plinko</h1>
+    <div class="hud">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Best: <span id="best">0</span></div>
+    </div>
+    <div class="drop-zone" id="drop-zone"></div>
+    <div class="game-container" id="game-container">
+        <canvas id="game" width="500" height="550"></canvas>
+    </div>
+    <div class="balls-remaining">Balls: <span id="balls">10</span> / 10</div>
+    <div class="controls">
+        <button id="new-game">New Game</button>
+        <button id="drop-random">Drop Random</button>
+    </div>
+    <div id="instructions">Click a slot above or press 1-9 to drop a ball</div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+        const dropZone = document.getElementById('drop-zone');
+        const scoreEl = document.getElementById('score');
+        const bestEl = document.getElementById('best');
+        const ballsEl = document.getElementById('balls');
+
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+
+        const ROWS = 12;
+        const PEG_RADIUS = 6;
+        const BALL_RADIUS = 10;
+        const GRAVITY = 0.3;
+        const BOUNCE = 0.7;
+        const FRICTION = 0.99;
+
+        const SLOT_VALUES = [500, 100, 50, 20, 10, 20, 50, 100, 500];
+        const SLOT_COLORS = ['#ffd700', '#ffa500', '#ff6b6b', '#ff8e8e', '#ffb3b3', '#ff8e8e', '#ff6b6b', '#ffa500', '#ffd700'];
+
+        let pegs = [];
+        let balls = [];
+        let slots = [];
+        let score = 0;
+        let best = parseInt(localStorage.getItem('plinko-best')) || 0;
+        let ballsRemaining = 10;
+
+        bestEl.textContent = best;
+
+        function init() {
+            score = 0;
+            ballsRemaining = 10;
+            balls = [];
+            scoreEl.textContent = '0';
+            ballsEl.textContent = '10';
+
+            createPegs();
+            createSlots();
+            createDropButtons();
+            updateDropButtons();
+        }
+
+        function createPegs() {
+            pegs = [];
+            const startY = 80;
+            const spacingY = (HEIGHT - startY - 80) / ROWS;
+            const spacingX = WIDTH / (ROWS + 2);
+
+            for (let row = 0; row < ROWS; row++) {
+                const pegsInRow = row + 3;
+                const rowWidth = (pegsInRow - 1) * spacingX;
+                const startX = (WIDTH - rowWidth) / 2;
+
+                for (let col = 0; col < pegsInRow; col++) {
+                    pegs.push({
+                        x: startX + col * spacingX,
+                        y: startY + row * spacingY,
+                        radius: PEG_RADIUS
+                    });
+                }
+            }
+        }
+
+        function createSlots() {
+            slots = [];
+            const slotWidth = WIDTH / SLOT_VALUES.length;
+            const slotHeight = 50;
+
+            for (let i = 0; i < SLOT_VALUES.length; i++) {
+                slots.push({
+                    x: i * slotWidth,
+                    y: HEIGHT - slotHeight,
+                    width: slotWidth,
+                    height: slotHeight,
+                    value: SLOT_VALUES[i],
+                    color: SLOT_COLORS[i]
+                });
+            }
+        }
+
+        function createDropButtons() {
+            dropZone.innerHTML = '';
+            const numButtons = 9;
+
+            for (let i = 0; i < numButtons; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'drop-btn';
+                btn.textContent = i + 1;
+                btn.addEventListener('click', () => dropBall(i));
+                dropZone.appendChild(btn);
+            }
+        }
+
+        function updateDropButtons() {
+            const buttons = dropZone.querySelectorAll('.drop-btn');
+            buttons.forEach(btn => {
+                btn.disabled = ballsRemaining <= 0;
+            });
+        }
+
+        function dropBall(slotIndex) {
+            if (ballsRemaining <= 0) return;
+
+            const numSlots = 9;
+            const slotWidth = WIDTH / numSlots;
+            const x = slotWidth * slotIndex + slotWidth / 2;
+
+            // Add slight randomness
+            const randomOffset = (Math.random() - 0.5) * 20;
+
+            balls.push({
+                x: x + randomOffset,
+                y: 20,
+                vx: (Math.random() - 0.5) * 2,
+                vy: 0,
+                radius: BALL_RADIUS,
+                active: true,
+                hue: Math.random() * 360
+            });
+
+            ballsRemaining--;
+            ballsEl.textContent = ballsRemaining;
+            updateDropButtons();
+        }
+
+        function dropRandomBall() {
+            if (ballsRemaining <= 0) return;
+            const randomSlot = Math.floor(Math.random() * 9);
+            dropBall(randomSlot);
+        }
+
+        function update() {
+            for (const ball of balls) {
+                if (!ball.active) continue;
+
+                // Apply gravity
+                ball.vy += GRAVITY;
+
+                // Apply friction
+                ball.vx *= FRICTION;
+
+                // Update position
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+
+                // Bounce off walls
+                if (ball.x - ball.radius < 0) {
+                    ball.x = ball.radius;
+                    ball.vx = -ball.vx * BOUNCE;
+                } else if (ball.x + ball.radius > WIDTH) {
+                    ball.x = WIDTH - ball.radius;
+                    ball.vx = -ball.vx * BOUNCE;
+                }
+
+                // Peg collisions
+                for (const peg of pegs) {
+                    const dx = ball.x - peg.x;
+                    const dy = ball.y - peg.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = ball.radius + peg.radius;
+
+                    if (dist < minDist) {
+                        // Collision response
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDist - dist;
+
+                        // Push ball out of peg
+                        ball.x += Math.cos(angle) * overlap;
+                        ball.y += Math.sin(angle) * overlap;
+
+                        // Reflect velocity
+                        const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                        const newAngle = angle + (Math.random() - 0.5) * 0.5;
+
+                        ball.vx = Math.cos(newAngle) * speed * BOUNCE;
+                        ball.vy = Math.sin(newAngle) * speed * BOUNCE;
+
+                        // Add some randomness
+                        ball.vx += (Math.random() - 0.5) * 1;
+                    }
+                }
+
+                // Check if ball reached bottom
+                if (ball.y + ball.radius >= HEIGHT - 50) {
+                    ball.active = false;
+
+                    // Find which slot
+                    for (const slot of slots) {
+                        if (ball.x >= slot.x && ball.x < slot.x + slot.width) {
+                            score += slot.value;
+                            scoreEl.textContent = score;
+                            showScorePopup(ball.x, HEIGHT - 60, slot.value);
+
+                            if (score > best) {
+                                best = score;
+                                bestEl.textContent = best;
+                                localStorage.setItem('plinko-best', best);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Remove inactive balls after a delay
+            balls = balls.filter(b => b.active || b.y < HEIGHT + 50);
+        }
+
+        function showScorePopup(x, y, value) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = '+' + value;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            container.appendChild(popup);
+
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        function draw() {
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Draw slots
+            for (const slot of slots) {
+                ctx.fillStyle = slot.color;
+                ctx.fillRect(slot.x + 2, slot.y, slot.width - 4, slot.height);
+
+                // Slot value
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(slot.value, slot.x + slot.width / 2, slot.y + 32);
+
+                // Dividers
+                ctx.fillStyle = '#333';
+                ctx.fillRect(slot.x, slot.y, 4, slot.height);
+            }
+            // Last divider
+            ctx.fillRect(WIDTH - 4, HEIGHT - 50, 4, 50);
+
+            // Draw pegs
+            for (const peg of pegs) {
+                ctx.beginPath();
+                ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+
+                // Peg shine
+                ctx.beginPath();
+                ctx.arc(peg.x - 2, peg.y - 2, peg.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fill();
+            }
+
+            // Draw balls
+            for (const ball of balls) {
+                if (!ball.active && ball.y > HEIGHT) continue;
+
+                // Ball shadow
+                ctx.beginPath();
+                ctx.arc(ball.x + 3, ball.y + 3, ball.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fill();
+
+                // Ball gradient
+                const gradient = ctx.createRadialGradient(
+                    ball.x - 3, ball.y - 3, 0,
+                    ball.x, ball.y, ball.radius
+                );
+                gradient.addColorStop(0, `hsl(${ball.hue}, 80%, 60%)`);
+                gradient.addColorStop(1, `hsl(${ball.hue}, 80%, 40%)`);
+
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Ball shine
+                ctx.beginPath();
+                ctx.arc(ball.x - 3, ball.y - 3, ball.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.fill();
+            }
+
+            // Drop zone indicator
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(0, 0, WIDTH, 40);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.getElementById('new-game').addEventListener('click', init);
+        document.getElementById('drop-random').addEventListener('click', dropRandomBall);
+
+        document.addEventListener('keydown', (e) => {
+            const num = parseInt(e.key);
+            if (num >= 1 && num <= 9) {
+                dropBall(num - 1);
+            }
+            if (e.code === 'Space') {
+                e.preventDefault();
+                dropRandomBall();
+            }
+        });
+
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>
