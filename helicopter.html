@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helicopter</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #1a1a1a;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        h1 {
+            color: #4ade80;
+            margin: 0 0 15px 0;
+            font-size: 32px;
+        }
+        .hud {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 18px;
+        }
+        .stat {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 20px;
+            border-radius: 8px;
+        }
+        .stat span {
+            color: #4ade80;
+            font-weight: bold;
+        }
+        canvas {
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #instructions {
+            color: #888;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Helicopter</h1>
+    <div class="hud">
+        <div class="stat">Distance: <span id="distance">0</span>m</div>
+        <div class="stat">Best: <span id="best">0</span>m</div>
+    </div>
+    <canvas id="game" width="700" height="400"></canvas>
+    <div id="instructions">Hold click, tap, or Space to fly up. Release to descend. Avoid the walls and obstacles!</div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const distanceEl = document.getElementById('distance');
+        const bestEl = document.getElementById('best');
+
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+
+        const GRAVITY = 0.35;
+        const LIFT = -0.6;
+        const SCROLL_SPEED = 4;
+
+        let helicopter;
+        let terrain = { top: [], bottom: [] };
+        let obstacles = [];
+        let particles = [];
+        let distance = 0;
+        let best = parseInt(localStorage.getItem('helicopter-best')) || 0;
+        let gameOver = false;
+        let gameStarted = false;
+        let holding = false;
+        let smokeTimer = 0;
+
+        bestEl.textContent = best;
+
+        function init() {
+            helicopter = {
+                x: 100,
+                y: HEIGHT / 2,
+                width: 50,
+                height: 25,
+                vy: 0,
+                rotation: 0,
+                rotorAngle: 0
+            };
+
+            // Initialize terrain
+            terrain.top = [];
+            terrain.bottom = [];
+            let topY = 50;
+            let bottomY = HEIGHT - 50;
+            const gapSize = 200;
+
+            for (let x = 0; x <= WIDTH + 100; x += 20) {
+                topY += (Math.random() - 0.5) * 20;
+                topY = Math.max(20, Math.min(HEIGHT / 2 - gapSize / 2 - 20, topY));
+
+                bottomY += (Math.random() - 0.5) * 20;
+                bottomY = Math.min(HEIGHT - 20, Math.max(HEIGHT / 2 + gapSize / 2 + 20, bottomY));
+
+                terrain.top.push({ x, y: topY });
+                terrain.bottom.push({ x, y: bottomY });
+            }
+
+            obstacles = [];
+            particles = [];
+            distance = 0;
+            gameOver = false;
+            gameStarted = false;
+        }
+
+        function spawnObstacle() {
+            const topY = terrain.top[terrain.top.length - 1].y;
+            const bottomY = terrain.bottom[terrain.bottom.length - 1].y;
+            const gapHeight = bottomY - topY;
+
+            const height = 40 + Math.random() * (gapHeight * 0.4);
+            const fromTop = Math.random() < 0.5;
+
+            obstacles.push({
+                x: WIDTH + 50,
+                y: fromTop ? topY : bottomY - height,
+                width: 30,
+                height: height,
+                passed: false
+            });
+        }
+
+        function addTerrainPoint() {
+            const lastTop = terrain.top[terrain.top.length - 1];
+            const lastBottom = terrain.bottom[terrain.bottom.length - 1];
+
+            // Gradually change gap size based on distance
+            const minGap = Math.max(120, 200 - distance / 50);
+            const currentGap = lastBottom.y - lastTop.y;
+
+            let newTopY = lastTop.y + (Math.random() - 0.5) * 25;
+            let newBottomY = lastBottom.y + (Math.random() - 0.5) * 25;
+
+            // Ensure minimum gap
+            if (newBottomY - newTopY < minGap) {
+                const mid = (newTopY + newBottomY) / 2;
+                newTopY = mid - minGap / 2;
+                newBottomY = mid + minGap / 2;
+            }
+
+            newTopY = Math.max(20, Math.min(HEIGHT / 2 - 60, newTopY));
+            newBottomY = Math.min(HEIGHT - 20, Math.max(HEIGHT / 2 + 60, newBottomY));
+
+            terrain.top.push({ x: lastTop.x + 20, y: newTopY });
+            terrain.bottom.push({ x: lastBottom.x + 20, y: newBottomY });
+        }
+
+        function spawnSmoke() {
+            particles.push({
+                x: helicopter.x - 10,
+                y: helicopter.y + helicopter.height / 2 + (Math.random() - 0.5) * 10,
+                vx: -2 - Math.random() * 2,
+                vy: (Math.random() - 0.5) * 1,
+                size: 5 + Math.random() * 5,
+                life: 30 + Math.random() * 20,
+                type: 'smoke'
+            });
+        }
+
+        function spawnExplosion() {
+            for (let i = 0; i < 40; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 6;
+                particles.push({
+                    x: helicopter.x + helicopter.width / 2,
+                    y: helicopter.y + helicopter.height / 2,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 8,
+                    life: 40 + Math.random() * 30,
+                    type: 'explosion',
+                    color: Math.random() < 0.5 ? '#ff6b6b' : '#ffd93d'
+                });
+            }
+        }
+
+        function update() {
+            if (gameOver) {
+                updateParticles();
+                return;
+            }
+
+            if (!gameStarted) return;
+
+            // Apply physics
+            if (holding) {
+                helicopter.vy += LIFT;
+            } else {
+                helicopter.vy += GRAVITY;
+            }
+
+            helicopter.vy = Math.max(-8, Math.min(8, helicopter.vy));
+            helicopter.y += helicopter.vy;
+
+            // Tilt based on velocity
+            helicopter.rotation = helicopter.vy * 0.03;
+
+            // Rotor animation
+            helicopter.rotorAngle += 0.5;
+
+            // Update distance
+            distance += SCROLL_SPEED / 10;
+            distanceEl.textContent = Math.floor(distance);
+
+            // Scroll terrain
+            for (const point of terrain.top) point.x -= SCROLL_SPEED;
+            for (const point of terrain.bottom) point.x -= SCROLL_SPEED;
+
+            // Remove old terrain and add new
+            while (terrain.top[0].x < -20) {
+                terrain.top.shift();
+                terrain.bottom.shift();
+                addTerrainPoint();
+            }
+
+            // Scroll obstacles
+            for (const obs of obstacles) {
+                obs.x -= SCROLL_SPEED;
+            }
+            obstacles = obstacles.filter(obs => obs.x + obs.width > -20);
+
+            // Spawn obstacles
+            if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < WIDTH - 200 - Math.random() * 150) {
+                if (distance > 10) {
+                    spawnObstacle();
+                }
+            }
+
+            // Smoke trail
+            smokeTimer++;
+            if (smokeTimer >= 3) {
+                smokeTimer = 0;
+                spawnSmoke();
+            }
+
+            // Collision detection
+            // Terrain collision
+            for (let i = 0; i < terrain.top.length - 1; i++) {
+                const t1 = terrain.top[i];
+                const t2 = terrain.top[i + 1];
+                const b1 = terrain.bottom[i];
+                const b2 = terrain.bottom[i + 1];
+
+                if (helicopter.x + helicopter.width > t1.x && helicopter.x < t2.x) {
+                    const ratio = (helicopter.x - t1.x) / (t2.x - t1.x);
+                    const topY = t1.y + (t2.y - t1.y) * ratio;
+                    const bottomY = b1.y + (b2.y - b1.y) * ratio;
+
+                    if (helicopter.y < topY || helicopter.y + helicopter.height > bottomY) {
+                        die();
+                        return;
+                    }
+                }
+            }
+
+            // Obstacle collision
+            for (const obs of obstacles) {
+                if (helicopter.x + helicopter.width - 10 > obs.x &&
+                    helicopter.x + 10 < obs.x + obs.width &&
+                    helicopter.y + 5 < obs.y + obs.height &&
+                    helicopter.y + helicopter.height - 5 > obs.y) {
+                    die();
+                    return;
+                }
+            }
+
+            updateParticles();
+        }
+
+        function updateParticles() {
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.type === 'smoke') {
+                    p.size *= 0.97;
+                    p.vy -= 0.02;
+                } else {
+                    p.vy += 0.1;
+                    p.size *= 0.96;
+                }
+
+                p.life--;
+                return p.life > 0 && p.size > 0.5;
+            });
+        }
+
+        function die() {
+            gameOver = true;
+            spawnExplosion();
+
+            if (Math.floor(distance) > best) {
+                best = Math.floor(distance);
+                localStorage.setItem('helicopter-best', best);
+                bestEl.textContent = best;
+            }
+
+            setTimeout(() => {
+                init();
+            }, 2000);
+        }
+
+        function draw() {
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Draw terrain
+            // Top terrain
+            ctx.fillStyle = '#2d4a3e';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            for (const point of terrain.top) {
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.lineTo(WIDTH, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Top terrain edge
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i < terrain.top.length; i++) {
+                const point = terrain.top[i];
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+
+            // Bottom terrain
+            ctx.fillStyle = '#2d4a3e';
+            ctx.beginPath();
+            ctx.moveTo(0, HEIGHT);
+            for (const point of terrain.bottom) {
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.lineTo(WIDTH, HEIGHT);
+            ctx.closePath();
+            ctx.fill();
+
+            // Bottom terrain edge
+            ctx.strokeStyle = '#4ade80';
+            ctx.beginPath();
+            for (let i = 0; i < terrain.bottom.length; i++) {
+                const point = terrain.bottom[i];
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+
+            // Draw obstacles
+            for (const obs of obstacles) {
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Highlight
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(obs.x, obs.y, 5, obs.height);
+
+                // Warning stripes
+                ctx.fillStyle = '#fbbf24';
+                for (let y = obs.y; y < obs.y + obs.height; y += 20) {
+                    ctx.fillRect(obs.x + 8, y, obs.width - 12, 8);
+                }
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                ctx.globalAlpha = p.life / 50;
+                if (p.type === 'smoke') {
+                    ctx.fillStyle = '#666';
+                } else {
+                    ctx.fillStyle = p.color;
+                }
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw helicopter
+            if (!gameOver) {
+                ctx.save();
+                ctx.translate(helicopter.x + helicopter.width / 2, helicopter.y + helicopter.height / 2);
+                ctx.rotate(helicopter.rotation);
+
+                // Body
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, helicopter.width / 2, helicopter.height / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cockpit
+                ctx.fillStyle = '#86efac';
+                ctx.beginPath();
+                ctx.ellipse(10, -2, 12, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail
+                ctx.fillStyle = '#4ade80';
+                ctx.fillRect(-helicopter.width / 2 - 15, -3, 20, 6);
+
+                // Tail rotor
+                ctx.fillStyle = '#22c55e';
+                ctx.fillRect(-helicopter.width / 2 - 18, -10, 4, 20);
+
+                // Main rotor
+                ctx.save();
+                ctx.rotate(helicopter.rotorAngle);
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-35, -2, 70, 4);
+                ctx.restore();
+
+                // Rotor hub
+                ctx.fillStyle = '#666';
+                ctx.beginPath();
+                ctx.arc(0, -helicopter.height / 2 + 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Skids
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-15, helicopter.height / 2 - 2, 30, 4);
+
+                ctx.restore();
+            }
+
+            // Start screen
+            if (!gameStarted && !gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+                ctx.fillStyle = '#4ade80';
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('HELICOPTER', WIDTH / 2, HEIGHT / 2 - 30);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText('Hold to fly up, release to descend', WIDTH / 2, HEIGHT / 2 + 20);
+
+                ctx.fillStyle = '#aaa';
+                ctx.font = '16px Arial';
+                ctx.fillText('Click or hold Space to start', WIDTH / 2, HEIGHT / 2 + 60);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Controls
+        function handleDown() {
+            if (!gameStarted && !gameOver) {
+                gameStarted = true;
+            }
+            holding = true;
+        }
+
+        function handleUp() {
+            holding = false;
+        }
+
+        canvas.addEventListener('mousedown', handleDown);
+        canvas.addEventListener('mouseup', handleUp);
+        canvas.addEventListener('mouseleave', handleUp);
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleDown();
+        });
+        canvas.addEventListener('touchend', handleUp);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                handleDown();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                handleUp();
+            }
+        });
+
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>
