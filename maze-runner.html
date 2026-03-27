@@ -35,5 +35,60 @@
     </style>
 </head>
 <body>
+    <div id="hud">
+        <div>Time: <span id="timer">0.0</span>s</div>
+        <div>Find the green marker on the map</div>
+    </div>
+    <canvas id="game" width="640" height="400"></canvas>
+    <div id="instructions">W/S or Up/Down to move, A/D or Left/Right to turn. A fresh random maze is generated every time you reach the exit.</div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const timerEl = document.getElementById('timer');
+        const SCREEN_W = canvas.width, SCREEN_H = canvas.height;
+
+        const CELLS_W = 15, CELLS_H = 15;
+        const GRID_W = CELLS_W * 2 + 1, GRID_H = CELLS_H * 2 + 1;
+        const FOV = Math.PI / 3;
+        const MOVE_SPEED = 0.06;
+        const ROTATE_SPEED = 0.045;
+        const PLAYER_RADIUS = 0.2;
+
+        let grid, exitGridX, exitGridY, player, won, elapsedMs, keys, lastTime;
+
+        function generateMaze(w, h) {
+            const visited = Array.from({ length: h }, () => new Array(w).fill(false));
+            const g = Array.from({ length: h * 2 + 1 }, () => new Array(w * 2 + 1).fill(1));
+
+            for (let cy = 0; cy < h; cy++) {
+                for (let cx = 0; cx < w; cx++) g[cy * 2 + 1][cx * 2 + 1] = 0;
+            }
+
+            const stack = [{ x: 0, y: 0 }];
+            visited[0][0] = true;
+            const dirs = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const options = [];
+                for (const d of dirs) {
+                    const nx = current.x + d.dx, ny = current.y + d.dy;
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h && !visited[ny][nx]) {
+                        options.push({ x: nx, y: ny, dx: d.dx, dy: d.dy });
+                    }
+                }
+                if (options.length === 0) { stack.pop(); continue; }
+                const next = options[Math.floor(Math.random() * options.length)];
+                const wallX = current.x * 2 + 1 + next.dx;
+                const wallY = current.y * 2 + 1 + next.dy;
+                g[wallY][wallX] = 0;
+                visited[next.y][next.x] = true;
+                stack.push({ x: next.x, y: next.y });
+            }
+
+            return g;
+        }
+    </script>
 </body>
 </html>
