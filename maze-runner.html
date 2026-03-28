@@ -90,6 +90,26 @@
             return g;
         }
 
+        function isWallAt(x, y) {
+            const gx = Math.floor(x), gy = Math.floor(y);
+            if (gx < 0 || gx >= GRID_W || gy < 0 || gy >= GRID_H) return true;
+            return grid[gy][gx] === 1;
+        }
+
+        function tryMovePlayer(dx, dy) {
+            const r = PLAYER_RADIUS;
+            const newX = player.x + dx;
+            const xSign = Math.sign(dx);
+            if (!isWallAt(newX + xSign * r, player.y - r) && !isWallAt(newX + xSign * r, player.y + r)) {
+                player.x = newX;
+            }
+            const newY = player.y + dy;
+            const ySign = Math.sign(dy);
+            if (!isWallAt(player.x - r, newY + ySign * r) && !isWallAt(player.x + r, newY + ySign * r)) {
+                player.y = newY;
+            }
+        }
+
         function castRay(px, py, rayDirX, rayDirY) {
             let mapX = Math.floor(px), mapY = Math.floor(py);
             const deltaDistX = rayDirX === 0 ? 1e30 : Math.abs(1 / rayDirX);
