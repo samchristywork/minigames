@@ -163,6 +163,37 @@
                 won = true;
             }
         }
+
+        function drawMinimap() {
+            const mmSize = 150;
+            const cellSize = mmSize / GRID_W;
+            const ox = SCREEN_W - mmSize - 10, oy = 10;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(ox - 4, oy - 4, mmSize + 8, mmSize + 8);
+
+            for (let y = 0; y < GRID_H; y++) {
+                for (let x = 0; x < GRID_W; x++) {
+                    ctx.fillStyle = grid[y][x] === 1 ? '#1a3a24' : '#0a0a14';
+                    ctx.fillRect(ox + x * cellSize, oy + y * cellSize, cellSize + 0.5, cellSize + 0.5);
+                }
+            }
+
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(ox + exitGridX * cellSize, oy + exitGridY * cellSize, cellSize + 0.5, cellSize + 0.5);
+
+            const pxm = ox + player.x * cellSize, pym = oy + player.y * cellSize;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(pxm, pym);
+            ctx.lineTo(pxm + Math.cos(player.angle) * 8, pym + Math.sin(player.angle) * 8);
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(pxm, pym, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
     </script>
 </body>
 </html>
