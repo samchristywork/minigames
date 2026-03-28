@@ -144,6 +144,25 @@
             const base = side === 1 ? [56, 140, 90] : [74, 222, 128];
             return `rgb(${Math.floor(base[0] * brightness)},${Math.floor(base[1] * brightness)},${Math.floor(base[2] * brightness)})`;
         }
+
+        function handleInput() {
+            if (keys['a'] || keys['ArrowLeft']) player.angle -= ROTATE_SPEED;
+            if (keys['d'] || keys['ArrowRight']) player.angle += ROTATE_SPEED;
+
+            let dx = 0, dy = 0;
+            if (keys['w'] || keys['ArrowUp']) { dx += Math.cos(player.angle) * MOVE_SPEED; dy += Math.sin(player.angle) * MOVE_SPEED; }
+            if (keys['s'] || keys['ArrowDown']) { dx -= Math.cos(player.angle) * MOVE_SPEED; dy -= Math.sin(player.angle) * MOVE_SPEED; }
+            if (dx !== 0 || dy !== 0) tryMovePlayer(dx, dy);
+        }
+
+        function update(dt) {
+            if (won) return;
+            elapsedMs += dt;
+            handleInput();
+            if (Math.floor(player.x) === exitGridX && Math.floor(player.y) === exitGridY) {
+                won = true;
+            }
+        }
     </script>
 </body>
 </html>
