@@ -164,6 +164,25 @@
             }
         }
 
+        function draw3D() {
+            ctx.fillStyle = '#0d1620';
+            ctx.fillRect(0, 0, SCREEN_W, SCREEN_H / 2);
+            ctx.fillStyle = '#141414';
+            ctx.fillRect(0, SCREEN_H / 2, SCREEN_W, SCREEN_H / 2);
+
+            for (let col = 0; col < SCREEN_W; col++) {
+                const rayAngle = player.angle - FOV / 2 + (col / SCREEN_W) * FOV;
+                const rayDirX = Math.cos(rayAngle), rayDirY = Math.sin(rayAngle);
+                const hitResult = castRay(player.x, player.y, rayDirX, rayDirY);
+                const correctedDist = Math.max(0.0001, hitResult.dist * Math.cos(rayAngle - player.angle));
+                const lineHeight = Math.min(SCREEN_H * 3, SCREEN_H / correctedDist);
+                const drawStart = Math.max(0, SCREEN_H / 2 - lineHeight / 2);
+                const drawEnd = Math.min(SCREEN_H, SCREEN_H / 2 + lineHeight / 2);
+                ctx.fillStyle = wallColor(correctedDist, hitResult.side);
+                ctx.fillRect(col, drawStart, 1, drawEnd - drawStart);
+            }
+        }
+
         function drawMinimap() {
             const mmSize = 150;
             const cellSize = mmSize / GRID_W;
@@ -193,6 +212,27 @@
             ctx.beginPath();
             ctx.arc(pxm, pym, 3, 0, Math.PI * 2);
             ctx.fill();
+        }
+
+        function draw() {
+            draw3D();
+            drawMinimap();
+
+            if (won) {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+                ctx.fillStyle = '#4ade80';
+                ctx.font = 'bold 28px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('You reached the exit!', SCREEN_W / 2, SCREEN_H / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px Arial';
+                ctx.fillText(`Time: ${(elapsedMs / 1000).toFixed(1)}s`, SCREEN_W / 2, SCREEN_H / 2 + 14);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('Press Space for a new maze', SCREEN_W / 2, SCREEN_H / 2 + 42);
+            }
         }
     </script>
 </body>
