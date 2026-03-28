@@ -234,6 +234,40 @@
                 ctx.fillText('Press Space for a new maze', SCREEN_W / 2, SCREEN_H / 2 + 42);
             }
         }
+
+        function gameLoop(timestamp) {
+            if (lastTime === 0) lastTime = timestamp;
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            update(dt);
+            draw();
+            timerEl.textContent = (elapsedMs / 1000).toFixed(1);
+            requestAnimationFrame(gameLoop);
+        }
+
+        function init() {
+            grid = generateMaze(CELLS_W, CELLS_H);
+            exitGridX = (CELLS_W - 1) * 2 + 1;
+            exitGridY = (CELLS_H - 1) * 2 + 1;
+            player = { x: 1.5, y: 1.5, angle: Math.PI / 4 };
+            won = false;
+            elapsedMs = 0;
+            keys = keys || {};
+            lastTime = 0;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault();
+            if (won && e.key === ' ') init();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        init();
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
