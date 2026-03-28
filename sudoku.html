@@ -46,6 +46,49 @@
     <div id="instructions">Click a cell, type 1-9 to fill it (Backspace to clear). Arrow keys move the selection, H uses a hint.</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const timeEl = document.getElementById('time');
+        const mistakesEl = document.getElementById('mistakes');
+        const hintsEl = document.getElementById('hints');
+        const difficultyEl = document.getElementById('difficulty');
+
+        const CELL = 50;
+        const BOARD_PX = CELL * 9;
+        const BUTTON_Y = BOARD_PX + 10;
+        const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+        const REMOVE_COUNT = { Easy: 40, Medium: 48, Hard: 55 };
+
+        const BUTTONS = [
+            { label: 'New Game', x: 10, w: 130 },
+            { label: 'Hint (H)', x: 160, w: 130 },
+            { label: 'Difficulty', x: 310, w: 130 }
+        ];
+        const BUTTON_H = 50;
+
+        let solutionGrid, board, given, hinted;
+        let selected, mistakes, hintsUsed, difficultyIndex, timerFrames, solved;
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function isValidPlacement(grid, r, c, n) {
+            for (let i = 0; i < 9; i++) {
+                if (grid[r][i] === n || grid[i][c] === n) return false;
+            }
+            const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+            for (let rr = br; rr < br + 3; rr++) {
+                for (let cc = bc; cc < bc + 3; cc++) {
+                    if (grid[rr][cc] === n) return false;
+                }
+            }
+            return true;
+        }
     </script>
 </body>
 </html>
