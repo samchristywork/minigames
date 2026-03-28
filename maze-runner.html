@@ -89,6 +89,41 @@
 
             return g;
         }
+
+        function castRay(px, py, rayDirX, rayDirY) {
+            let mapX = Math.floor(px), mapY = Math.floor(py);
+            const deltaDistX = rayDirX === 0 ? 1e30 : Math.abs(1 / rayDirX);
+            const deltaDistY = rayDirY === 0 ? 1e30 : Math.abs(1 / rayDirY);
+
+            let stepX, sideDistX;
+            if (rayDirX < 0) { stepX = -1; sideDistX = (px - mapX) * deltaDistX; }
+            else { stepX = 1; sideDistX = (mapX + 1 - px) * deltaDistX; }
+
+            let stepY, sideDistY;
+            if (rayDirY < 0) { stepY = -1; sideDistY = (py - mapY) * deltaDistY; }
+            else { stepY = 1; sideDistY = (mapY + 1 - py) * deltaDistY; }
+
+            let side = 0, hit = false, guard = 0;
+            while (!hit && guard < 128) {
+                if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+                else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+                if (mapX < 0 || mapX >= GRID_W || mapY < 0 || mapY >= GRID_H) hit = true;
+                else if (grid[mapY][mapX] === 1) hit = true;
+                guard++;
+            }
+
+            let rawDist;
+            if (side === 0) rawDist = (mapX - px + (1 - stepX) / 2) / rayDirX;
+            else rawDist = (mapY - py + (1 - stepY) / 2) / rayDirY;
+
+            return { dist: Math.max(rawDist, 0.0001), side };
+        }
+
+        function wallColor(dist, side) {
+            const brightness = Math.max(0.12, 1 - dist / 14);
+            const base = side === 1 ? [56, 140, 90] : [74, 222, 128];
+            return `rgb(${Math.floor(base[0] * brightness)},${Math.floor(base[1] * brightness)},${Math.floor(base[2] * brightness)})`;
+        }
     </script>
 </body>
 </html>
