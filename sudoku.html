@@ -180,6 +180,66 @@
             difficultyIndex = 0;
             newGame();
         }
+
+        function hasConflict(r, c) {
+            const v = board[r][c];
+            if (v === 0) return false;
+            for (let cc = 0; cc < 9; cc++) if (cc !== c && board[r][cc] === v) return true;
+            for (let rr = 0; rr < 9; rr++) if (rr !== r && board[rr][c] === v) return true;
+            const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+            for (let rr = br; rr < br + 3; rr++) {
+                for (let cc = bc; cc < bc + 3; cc++) {
+                    if ((rr !== r || cc !== c) && board[rr][cc] === v) return true;
+                }
+            }
+            return false;
+        }
+
+        function checkWin() {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (board[r][c] !== solutionGrid[r][c]) return;
+                }
+            }
+            solved = true;
+        }
+
+        function setValue(r, c, v) {
+            if (solved || given[r][c] || hinted[r][c]) return;
+            if (v === 0) { board[r][c] = 0; return; }
+            board[r][c] = v;
+            if (v !== solutionGrid[r][c]) {
+                mistakes++;
+                mistakesEl.textContent = mistakes;
+            }
+            checkWin();
+        }
+
+        function useHint() {
+            if (solved || !selected) return;
+            const { r, c } = selected;
+            if (given[r][c] || hinted[r][c] || board[r][c] === solutionGrid[r][c]) return;
+            board[r][c] = solutionGrid[r][c];
+            hinted[r][c] = true;
+            hintsUsed++;
+            hintsEl.textContent = hintsUsed;
+            checkWin();
+        }
+
+        function cycleDifficulty() {
+            difficultyIndex = (difficultyIndex + 1) % DIFFICULTIES.length;
+            newGame();
+        }
+
+        function update() {
+            if (!solved) {
+                timerFrames++;
+                const totalSeconds = Math.floor(timerFrames / 60);
+                const mm = Math.floor(totalSeconds / 60);
+                const ss = totalSeconds % 60;
+                timeEl.textContent = `${mm}:${ss.toString().padStart(2, '0')}`;
+            }
+        }
     </script>
 </body>
 </html>
