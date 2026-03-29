@@ -132,6 +132,54 @@
             solve(0);
             return count;
         }
+
+        function createPuzzle(solution, cellsToRemove) {
+            const puzzle = solution.map(row => row.slice());
+            const positions = shuffle([...Array(81).keys()]);
+            let removed = 0;
+
+            for (const pos of positions) {
+                if (removed >= cellsToRemove) break;
+                const r = Math.floor(pos / 9), c = pos % 9;
+                if (puzzle[r][c] === 0) continue;
+
+                const backup = puzzle[r][c];
+                puzzle[r][c] = 0;
+                const testGrid = puzzle.map(row => row.slice());
+                if (countSolutions(testGrid, 2) === 1) {
+                    removed++;
+                } else {
+                    puzzle[r][c] = backup;
+                }
+            }
+
+            return puzzle;
+        }
+
+        function newGame() {
+            const difficulty = DIFFICULTIES[difficultyIndex];
+            difficultyEl.textContent = difficulty;
+
+            solutionGrid = generateSolvedGrid();
+            const puzzle = createPuzzle(solutionGrid, REMOVE_COUNT[difficulty]);
+            board = puzzle.map(row => row.slice());
+            given = board.map(row => row.map(v => v !== 0));
+            hinted = Array.from({ length: 9 }, () => new Array(9).fill(false));
+
+            selected = null;
+            mistakes = 0;
+            hintsUsed = 0;
+            timerFrames = 0;
+            solved = false;
+
+            mistakesEl.textContent = mistakes;
+            hintsEl.textContent = hintsUsed;
+        }
+
+        function init() {
+            difficultyIndex = 0;
+            newGame();
+        }
     </script>
 </body>
 </html>
