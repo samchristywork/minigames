@@ -89,6 +89,49 @@
             }
             return true;
         }
+
+        function generateSolvedGrid() {
+            const grid = Array.from({ length: 9 }, () => new Array(9).fill(0));
+
+            function fill(pos) {
+                if (pos === 81) return true;
+                const r = Math.floor(pos / 9), c = pos % 9;
+                const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                for (const n of nums) {
+                    if (isValidPlacement(grid, r, c, n)) {
+                        grid[r][c] = n;
+                        if (fill(pos + 1)) return true;
+                        grid[r][c] = 0;
+                    }
+                }
+                return false;
+            }
+
+            fill(0);
+            return grid;
+        }
+
+        function countSolutions(grid, limit) {
+            let count = 0;
+
+            function solve(pos) {
+                if (count >= limit) return;
+                if (pos === 81) { count++; return; }
+                const r = Math.floor(pos / 9), c = pos % 9;
+                if (grid[r][c] !== 0) { solve(pos + 1); return; }
+                for (let n = 1; n <= 9; n++) {
+                    if (count >= limit) return;
+                    if (isValidPlacement(grid, r, c, n)) {
+                        grid[r][c] = n;
+                        solve(pos + 1);
+                        grid[r][c] = 0;
+                    }
+                }
+            }
+
+            solve(0);
+            return count;
+        }
     </script>
 </body>
 </html>
