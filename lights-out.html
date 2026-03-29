@@ -100,6 +100,45 @@
                 flip(Math.floor(Math.random() * size), Math.floor(Math.random() * size));
             }
         }
+
+        function newGame() {
+            size = SIZES[sizeIndex];
+            cell = BOARD_PX / size;
+            sizeEl.textContent = `${size}x${size}`;
+            scramble();
+            moves = 0;
+            timerFrames = 0;
+            solved = false;
+            movesEl.textContent = moves;
+        }
+
+        function init() {
+            sizeIndex = 1;
+            newGame();
+        }
+
+        function cycleSize() {
+            sizeIndex = (sizeIndex + 1) % SIZES.length;
+            newGame();
+        }
+
+        function handleClick(r, c) {
+            if (solved) return;
+            flip(r, c);
+            moves++;
+            movesEl.textContent = moves;
+            if (isAllOff()) solved = true;
+        }
+
+        function update() {
+            if (!solved) {
+                timerFrames++;
+                const totalSeconds = Math.floor(timerFrames / 60);
+                const mm = Math.floor(totalSeconds / 60);
+                const ss = totalSeconds % 60;
+                timeEl.textContent = `${mm}:${ss.toString().padStart(2, '0')}`;
+            }
+        }
     </script>
 </body>
 </html>
