@@ -45,6 +45,164 @@
     <div id="instructions">You play red and move first. Click a piece, then click a highlighted square to move. Captures are mandatory, and you must keep jumping with the same piece while another capture is available.</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const redCountEl = document.getElementById('redCount');
+        const blackCountEl = document.getElementById('blackCount');
+        const statusEl = document.getElementById('status');
+
+        const SIZE = 8;
+        const CELL = 50;
+        const BOARD_X = 10;
+        const BOARD_Y = 10;
+        const BOARD_PX = SIZE * CELL;
+        const BUTTON_Y = BOARD_Y + BOARD_PX + 12;
+        const BUTTON_H = 44;
+        const AI_DEPTH = 5;
+
+        const ALL_DIRS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        const RED_DIRS = [[-1, -1], [-1, 1]];
+        const BLACK_DIRS = [[1, -1], [1, 1]];
+
+        const BUTTONS = [{ label: 'New Game', x: (420 - 160) / 2, w: 160 }];
+
+        let board, turn, selected, forcedPiece, gameOver, winner, aiDelay;
+
+        function dirsFor(piece) {
+            if (piece.king) return ALL_DIRS;
+            return piece.color === 'red' ? RED_DIRS : BLACK_DIRS;
+        }
+
+        function inBounds(r, c) { return r >= 0 && r < SIZE && c >= 0 && c < SIZE; }
+
+        function setup() {
+            board = [];
+            for (let r = 0; r < SIZE; r++) board.push(new Array(SIZE).fill(null));
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if ((r + c) % 2 !== 1) continue;
+                    if (r < 3) board[r][c] = { color: 'black', king: false };
+                    else if (r > 4) board[r][c] = { color: 'red', king: false };
+                }
+            }
+            turn = 'player';
+            selected = null;
+            forcedPiece = null;
+            gameOver = false;
+            winner = null;
+            aiDelay = 0;
+            statusEl.textContent = 'Your turn';
+            updateCounts();
+        }
+
+        function updateCounts() {
+            let red = 0, black = 0;
+            for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+                const p = board[r][c];
+                if (p) { if (p.color === 'red') red++; else black++; }
+            }
+            redCountEl.textContent = red;
+            blackCountEl.textContent = black;
+        }
+
+        function pieceMoves(b, r, c) {
+            const piece = b[r][c];
+            if (!piece) return [];
+            const moves = [];
+            for (const [dr, dc] of dirsFor(piece)) {
+                const nr = r + dr, nc = c + dc;
+                if (inBounds(nr, nc) && !b[nr][nc]) moves.push({ from: { r, c }, to: { r: nr, c: nc } });
+            }
+            return moves;
+        }
+
+        function pieceCapturesNow(b, r, c) {
+            const piece = b[r][c];
+            if (!piece) return [];
+            const captures = [];
+            for (const [dr, dc] of dirsFor(piece)) {
+                const mr = r + dr, mc = c + dc;
+                const nr = r + 2 * dr, nc = c + 2 * dc;
+                if (!inBounds(nr, nc)) continue;
+                const mid = b[mr][mc];
+                if (mid && mid.color !== piece.color && !b[nr][nc]) {
+                    captures.push({ from: { r, c }, to: { r: nr, c: nc }, captured: [{ r: mr, c: mc }] });
+                }
+            }
+            return captures;
+        }
+
+        function generateJumpSequences(b, r, c, color, isKingAtStart, capturedSoFar) {
+            const dirs = isKingAtStart ? ALL_DIRS : (color === 'red' ? RED_DIRS : BLACK_DIRS);
+            const sequences = [];
+            for (const [dr, dc] of dirs) {
+                const mr = r + dr, mc = c + dc;
+                const nr = r + 2 * dr, nc = c + 2 * dc;
+                if (!inBounds(nr, nc)) continue;
+                if (capturedSoFar.some(cap => cap.r === mr && cap.c === mc)) continue;
+                const mid = b[mr][mc];
+                if (!mid || mid.color === color || b[nr][nc]) continue;
+
+                const wouldKing = !isKingAtStart && ((color === 'red' && nr === 0) || (color === 'black' && nr === SIZE - 1));
+                const newCaptured = [...capturedSoFar, { r: mr, c: mc }];
+                if (wouldKing) {
+                    sequences.push({ r: nr, c: nc, captured: newCaptured });
+                } else {
+                    const further = generateJumpSequences(b, nr, nc, color, isKingAtStart, newCaptured);
+                    if (further.length === 0) sequences.push({ r: nr, c: nc, captured: newCaptured });
+                    else sequences.push(...further);
+                }
+            }
+            return sequences;
+        }
+
+        function getAllCompleteMoves(b, color) {
+            const captureMoves = [];
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const piece = b[r][c];
+                    if (!piece || piece.color !== color) continue;
+                    const seqs = generateJumpSequences(b, r, c, color, piece.king, []);
+                    for (const seq of seqs) captureMoves.push({ from: { r, c }, to: { r: seq.r, c: seq.c }, captured: seq.captured });
+                }
+            }
+            if (captureMoves.length > 0) return captureMoves;
+
+            const simple = [];
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const piece = b[r][c];
+                    if (piece && piece.color === color) simple.push(...pieceMoves(b, r, c));
+                }
+            }
+            return simple;
+        }
+
+        function hasAnyLegalMove(b, color) {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const piece = b[r][c];
+                    if (!piece || piece.color !== color) continue;
+                    if (pieceCapturesNow(b, r, c).length > 0 || pieceMoves(b, r, c).length > 0) return true;
+                }
+            }
+            return false;
+        }
+
+        function applyMoveInPlace(b, move) {
+            const piece = b[move.from.r][move.from.c];
+            b[move.from.r][move.from.c] = null;
+            if (move.captured) for (const cap of move.captured) b[cap.r][cap.c] = null;
+            b[move.to.r][move.to.c] = piece;
+            if (!piece.king) {
+                if ((piece.color === 'red' && move.to.r === 0) || (piece.color === 'black' && move.to.r === SIZE - 1)) piece.king = true;
+            }
+            return piece;
+        }
+
+        function cloneBoard(b) {
+            return b.map(row => row.map(cell => cell ? { ...cell } : null));
+        }
     </script>
 </body>
 </html>
