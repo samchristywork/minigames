@@ -203,6 +203,106 @@
         function cloneBoard(b) {
             return b.map(row => row.map(cell => cell ? { ...cell } : null));
         }
+
+        function evaluateBoard(b, aiColor) {
+            const oppColor = aiColor === 'red' ? 'black' : 'red';
+            let score = 0;
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const p = b[r][c];
+                    if (!p) continue;
+                    const val = p.king ? 1.6 : 1;
+                    score += p.color === aiColor ? val : -val;
+                }
+            }
+            return score;
+        }
+
+        function minimaxCheckers(b, depth, alpha, beta, maximizing, aiColor, oppColor) {
+            const color = maximizing ? aiColor : oppColor;
+            const moves = getAllCompleteMoves(b, color);
+            if (moves.length === 0) return maximizing ? -100 : 100;
+            if (depth === 0) return evaluateBoard(b, aiColor);
+
+            if (maximizing) {
+                let best = -Infinity;
+                for (const mv of moves) {
+                    const nb = cloneBoard(b);
+                    applyMoveInPlace(nb, mv);
+                    best = Math.max(best, minimaxCheckers(nb, depth - 1, alpha, beta, false, aiColor, oppColor));
+                    alpha = Math.max(alpha, best);
+                    if (beta <= alpha) break;
+                }
+                return best;
+            } else {
+                let best = Infinity;
+                for (const mv of moves) {
+                    const nb = cloneBoard(b);
+                    applyMoveInPlace(nb, mv);
+                    best = Math.min(best, minimaxCheckers(nb, depth - 1, alpha, beta, true, aiColor, oppColor));
+                    beta = Math.min(beta, best);
+                    if (beta <= alpha) break;
+                }
+                return best;
+            }
+        }
+
+        function chooseAiMove() {
+            const moves = getAllCompleteMoves(board, 'black');
+            let bestScore = -Infinity, bestMoves = [];
+            for (const mv of moves) {
+                const nb = cloneBoard(board);
+                applyMoveInPlace(nb, mv);
+                const score = minimaxCheckers(nb, AI_DEPTH - 1, -Infinity, Infinity, false, 'black', 'red');
+                if (score > bestScore) { bestScore = score; bestMoves = [mv]; }
+                else if (score === bestScore) bestMoves.push(mv);
+            }
+            return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+        }
+
+        function endTurn() {
+            selected = null;
+            forcedPiece = null;
+            updateCounts();
+            turn = turn === 'player' ? 'ai' : 'player';
+            const nextColor = turn === 'player' ? 'red' : 'black';
+            if (!hasAnyLegalMove(board, nextColor)) {
+                gameOver = true;
+                winner = turn === 'player' ? 'ai' : 'player';
+                statusEl.textContent = winner === 'player' ? 'You win!' : 'AI wins!';
+                return;
+            }
+            if (turn === 'ai') { aiDelay = 30; statusEl.textContent = 'AI is thinking...'; }
+            else statusEl.textContent = 'Your turn';
+        }
+
+        function attemptCaptureMove(destR, destC) {
+            const caps = pieceCapturesNow(board, selected.r, selected.c);
+            const match = caps.find(cap => cap.to.r === destR && cap.to.c === destC);
+            if (!match) { if (!forcedPiece) selected = null; return; }
+
+            const pieceBeforeMove = board[selected.r][selected.c];
+            const wasKing = pieceBeforeMove.king;
+            applyMoveInPlace(board, match);
+
+            if (!wasKing && board[destR][destC].king) { endTurn(); return; }
+
+            const further = pieceCapturesNow(board, destR, destC);
+            if (further.length > 0) {
+                selected = { r: destR, c: destC };
+                forcedPiece = selected;
+            } else {
+                endTurn();
+            }
+        }
+
+        function attemptSimpleMove(destR, destC) {
+            const moves = pieceMoves(board, selected.r, selected.c);
+            const match = moves.find(mv => mv.to.r === destR && mv.to.c === destC);
+            if (!match) { selected = null; return; }
+            applyMoveInPlace(board, match);
+            endTurn();
+        }
     </script>
 </body>
 </html>
