@@ -345,6 +345,89 @@
             }
         }
 
+        function drawBoard() {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const x = BOARD_X + c * CELL, y = BOARD_Y + r * CELL;
+                    ctx.fillStyle = (r + c) % 2 === 0 ? '#e8d9b5' : '#7a5230';
+                    ctx.fillRect(x, y, CELL, CELL);
+                }
+            }
+        }
+
+        function drawPiece(r, c, piece) {
+            const x = BOARD_X + c * CELL + CELL / 2;
+            const y = BOARD_Y + r * CELL + CELL / 2;
+            const radius = CELL * 0.38;
+
+            ctx.fillStyle = piece.color === 'red' ? '#d32f2f' : '#222';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = piece.color === 'red' ? '#7a1414' : '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            if (piece.king) {
+                ctx.fillStyle = '#ffd700';
+                ctx.font = `bold ${Math.floor(radius)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('K', x, y + 1);
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#12121f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBoard();
+
+            let highlightMoves = [];
+            if (selected) {
+                const mandatory = hasCaptureForColor(board, 'red');
+                highlightMoves = mandatory ? pieceCapturesNow(board, selected.r, selected.c) : pieceMoves(board, selected.r, selected.c);
+            }
+
+            for (const mv of highlightMoves) {
+                const x = BOARD_X + mv.to.c * CELL, y = BOARD_Y + mv.to.r * CELL;
+                ctx.fillStyle = 'rgba(74,222,128,0.4)';
+                ctx.fillRect(x + 4, y + 4, CELL - 8, CELL - 8);
+            }
+
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (board[r][c]) drawPiece(r, c, board[r][c]);
+                }
+            }
+
+            if (selected) {
+                const x = BOARD_X + selected.c * CELL, y = BOARD_Y + selected.r * CELL;
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x + 2, y + 2, CELL - 4, CELL - 4);
+            }
+
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (const btn of BUTTONS) {
+                ctx.fillStyle = '#223';
+                ctx.fillRect(btn.x, BUTTON_Y, btn.w, BUTTON_H);
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(btn.x, BUTTON_Y, btn.w, BUTTON_H);
+                ctx.fillStyle = '#4ade80';
+                ctx.fillText(btn.label, btn.x + btn.w / 2, BUTTON_Y + BUTTON_H / 2);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * (canvas.width / rect.width);
