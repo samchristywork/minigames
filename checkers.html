@@ -303,6 +303,69 @@
             applyMoveInPlace(board, match);
             endTurn();
         }
+
+        function handleBoardClick(r, c) {
+            if (gameOver || turn !== 'player') return;
+
+            if (forcedPiece) {
+                attemptCaptureMove(r, c);
+                return;
+            }
+
+            const mandatory = hasCaptureForColor(board, 'red');
+            const piece = board[r][c];
+            if (piece && piece.color === 'red') {
+                if (mandatory && pieceCapturesNow(board, r, c).length === 0) return;
+                selected = (selected && selected.r === r && selected.c === c) ? null : { r, c };
+                return;
+            }
+
+            if (!selected) return;
+            if (mandatory) attemptCaptureMove(r, c);
+            else attemptSimpleMove(r, c);
+        }
+
+        function hasCaptureForColor(b, color) {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const p = b[r][c];
+                    if (p && p.color === color && pieceCapturesNow(b, r, c).length > 0) return true;
+                }
+            }
+            return false;
+        }
+
+        function update() {
+            if (gameOver || turn !== 'ai') return;
+            aiDelay--;
+            if (aiDelay <= 0) {
+                const move = chooseAiMove();
+                if (move) applyMoveInPlace(board, move);
+                endTurn();
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            if (y >= BUTTON_Y && y <= BUTTON_Y + BUTTON_H) {
+                for (const btn of BUTTONS) {
+                    if (x >= btn.x && x <= btn.x + btn.w) setup();
+                }
+                return;
+            }
+
+            if (x >= BOARD_X && x < BOARD_X + BOARD_PX && y >= BOARD_Y && y < BOARD_Y + BOARD_PX) {
+                const c = Math.floor((x - BOARD_X) / CELL);
+                const r = Math.floor((y - BOARD_Y) / CELL);
+                handleBoardClick(r, c);
+            }
+        });
+
+        setup();
+        gameLoop();
     </script>
 </body>
 </html>
