@@ -83,6 +83,71 @@
             return filled === 0 || filled === total;
         }
 
+        function generatePuzzle() {
+            let grid;
+            do {
+                grid = [];
+                for (let r = 0; r < size; r++) {
+                    const row = [];
+                    for (let c = 0; c < size; c++) row.push(Math.random() < 0.5);
+                    grid.push(row);
+                }
+            } while (isTrivial(grid));
+
+            solution = grid;
+            rowClues = solution.map(row => computeRunClues(row));
+            colClues = [];
+            for (let c = 0; c < size; c++) {
+                const col = [];
+                for (let r = 0; r < size; r++) col.push(solution[r][c]);
+                colClues.push(computeRunClues(col));
+            }
+        }
+
+        function layoutCanvas() {
+            const maxRowLen = Math.max(...rowClues.map(c => c.length));
+            const maxColLen = Math.max(...colClues.map(c => c.length));
+
+            boardX = 16 + maxRowLen * 16;
+            boardY = 16 + maxColLen * 14;
+            boardPx = size * CELL;
+            buttonY = boardY + boardPx + 10;
+
+            const naturalWidth = boardX + boardPx + 16;
+            const buttonBarWidth = BUTTONS.reduce((sum, btn) => sum + btn.w, 0) + (BUTTONS.length - 1) * 10 + 20;
+
+            canvas.width = Math.max(naturalWidth, buttonBarWidth);
+            canvas.height = buttonY + BUTTON_H + 10;
+
+            boardX += Math.max(0, canvas.width - naturalWidth) / 2;
+
+            const totalButtonsWidth = BUTTONS.reduce((sum, btn) => sum + btn.w, 0) + (BUTTONS.length - 1) * 10;
+            let x = (canvas.width - totalButtonsWidth) / 2;
+            for (const btn of BUTTONS) {
+                btn.x = x;
+                x += btn.w + 10;
+            }
+        }
+
+        function newGame() {
+            size = SIZES[sizeIndex];
+            sizeEl.textContent = `${size}x${size}`;
+            generatePuzzle();
+            layoutCanvas();
+
+            playerGrid = [];
+            for (let r = 0; r < size; r++) playerGrid.push(new Array(size).fill('empty'));
+
+            timerFrames = 0;
+            solved = false;
+            statusEl.textContent = 'Solving';
+        }
+
+        function init() {
+            sizeIndex = 1;
+            newGame();
+        }
+
         function cycleSize() {
             sizeIndex = (sizeIndex + 1) % SIZES.length;
             newGame();
