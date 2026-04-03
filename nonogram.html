@@ -199,6 +199,123 @@
                 timeEl.textContent = `${mm}:${ss.toString().padStart(2, '0')}`;
             }
         }
+
+        function drawGrid() {
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const x = boardX + c * CELL;
+                    const y = boardY + r * CELL;
+                    const cell = playerGrid[r][c];
+
+                    ctx.fillStyle = (Math.floor(r / 5) + Math.floor(c / 5)) % 2 === 0 ? '#1a2038' : '#161b30';
+                    ctx.fillRect(x, y, CELL, CELL);
+
+                    if (cell === 'filled') {
+                        ctx.fillStyle = '#4ade80';
+                        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+                    } else if (cell === 'x') {
+                        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x + 6, y + 6);
+                        ctx.lineTo(x + CELL - 6, y + CELL - 6);
+                        ctx.moveTo(x + CELL - 6, y + 6);
+                        ctx.lineTo(x + 6, y + CELL - 6);
+                        ctx.stroke();
+                    }
+
+                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, CELL, CELL);
+                }
+            }
+
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= size; i += 5) {
+                ctx.beginPath();
+                ctx.moveTo(boardX + i * CELL, boardY);
+                ctx.lineTo(boardX + i * CELL, boardY + boardPx);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(boardX, boardY + i * CELL);
+                ctx.lineTo(boardX + boardPx, boardY + i * CELL);
+                ctx.stroke();
+            }
+        }
+
+        function drawClues() {
+            ctx.font = '13px Arial';
+            ctx.textBaseline = 'middle';
+
+            for (let r = 0; r < size; r++) {
+                const boolLine = playerGrid[r].map(v => v === 'filled');
+                const satisfied = lineSatisfied(boolLine, rowClues[r]);
+                ctx.fillStyle = satisfied ? 'rgba(74,222,128,0.4)' : '#ddd';
+                ctx.textAlign = 'right';
+                ctx.fillText(rowClues[r].join(' '), boardX - 8, boardY + r * CELL + CELL / 2);
+            }
+
+            ctx.textAlign = 'center';
+            for (let c = 0; c < size; c++) {
+                const boolLine = [];
+                for (let r = 0; r < size; r++) boolLine.push(playerGrid[r][c] === 'filled');
+                const satisfied = lineSatisfied(boolLine, colClues[c]);
+                ctx.fillStyle = satisfied ? 'rgba(74,222,128,0.4)' : '#ddd';
+
+                const clue = colClues[c];
+                for (let i = 0; i < clue.length; i++) {
+                    const y = boardY - (clue.length - i) * 14 + 2;
+                    ctx.fillText(clue[i], boardX + c * CELL + CELL / 2, y);
+                }
+            }
+        }
+
+        function drawButtons() {
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (const btn of BUTTONS) {
+                ctx.fillStyle = '#223';
+                ctx.fillRect(btn.x, buttonY, btn.w, BUTTON_H);
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(btn.x, buttonY, btn.w, BUTTON_H);
+                ctx.fillStyle = '#4ade80';
+                const label = btn.label === 'Size' ? `Size: ${size}x${size}` : btn.label;
+                ctx.fillText(label, btn.x + btn.w / 2, buttonY + BUTTON_H / 2);
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#12121f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawClues();
+            drawGrid();
+            drawButtons();
+
+            if (solved) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(boardX, boardY, boardPx, boardPx);
+
+                ctx.fillStyle = '#4ade80';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('SOLVED!', boardX + boardPx / 2, boardY + boardPx / 2 - 12);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px Arial';
+                ctx.fillText(`Time: ${timeEl.textContent}`, boardX + boardPx / 2, boardY + boardPx / 2 + 16);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
     </script>
 </body>
 </html>
