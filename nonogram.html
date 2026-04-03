@@ -45,6 +45,95 @@
     <div id="instructions">Left-click to fill a cell, right-click to mark an "X" (not filled). Match every row and column clue to reveal the picture.</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const timeEl = document.getElementById('time');
+        const sizeEl = document.getElementById('size');
+        const statusEl = document.getElementById('status');
+
+        const CELL = 26;
+        const SIZES = [5, 10, 15];
+        const BUTTON_H = 44;
+
+        let sizeIndex, size;
+        let solution, rowClues, colClues, playerGrid;
+        let boardX, boardY, boardPx, buttonY;
+        let timerFrames, solved;
+
+        const BUTTONS = [
+            { label: 'New Game', w: 160 },
+            { label: 'Size', w: 160 }
+        ];
+
+        function computeRunClues(line) {
+            const runs = [];
+            let count = 0;
+            for (const cell of line) {
+                if (cell) count++;
+                else if (count > 0) { runs.push(count); count = 0; }
+            }
+            if (count > 0) runs.push(count);
+            if (runs.length === 0) runs.push(0);
+            return runs;
+        }
+
+        function isTrivial(grid) {
+            let filled = 0, total = 0;
+            for (const row of grid) for (const cell of row) { total++; if (cell) filled++; }
+            return filled === 0 || filled === total;
+        }
+
+        function cycleSize() {
+            sizeIndex = (sizeIndex + 1) % SIZES.length;
+            newGame();
+        }
+
+        function lineSatisfied(boolLine, targetClue) {
+            const current = computeRunClues(boolLine);
+            if (current.length !== targetClue.length) return false;
+            for (let i = 0; i < current.length; i++) if (current[i] !== targetClue[i]) return false;
+            return true;
+        }
+
+        function checkWin() {
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const filled = playerGrid[r][c] === 'filled';
+                    if (filled !== solution[r][c]) return;
+                }
+            }
+            solved = true;
+            statusEl.textContent = 'Solved!';
+        }
+
+        function toggleFill(r, c) {
+            if (solved) return;
+            playerGrid[r][c] = playerGrid[r][c] === 'filled' ? 'empty' : 'filled';
+            checkWin();
+        }
+
+        function toggleMark(r, c) {
+            if (solved) return;
+            playerGrid[r][c] = playerGrid[r][c] === 'x' ? 'empty' : 'x';
+        }
+
+        function cellFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width) - boardX;
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height) - boardY;
+            if (x < 0 || x >= boardPx || y < 0 || y >= boardPx) return null;
+            return { r: Math.floor(y / CELL), c: Math.floor(x / CELL) };
+        }
+
+        function update() {
+            if (!solved) {
+                timerFrames++;
+                const totalSeconds = Math.floor(timerFrames / 60);
+                const mm = Math.floor(totalSeconds / 60);
+                const ss = totalSeconds % 60;
+                timeEl.textContent = `${mm}:${ss.toString().padStart(2, '0')}`;
+            }
+        }
     </script>
 </body>
 </html>
