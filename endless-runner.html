@@ -44,6 +44,139 @@
     <div id="instructions">Space / Up / click to jump. Hold Down to duck under birds. Avoid the cacti!</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const bestEl = document.getElementById('best');
+        const statusEl = document.getElementById('status');
+
+        const GROUND_Y = 170;
+        const GRAVITY = 0.6;
+        const JUMP_VELOCITY = -11;
+        const PLAYER_X = 60;
+        const PLAYER_WIDTH = 34;
+        const PLAYER_HEIGHT = 42;
+        const DUCK_HEIGHT = 24;
+        const BASE_SPEED = 5;
+        const MAX_SPEED = 13;
+        const STORAGE_KEY = 'endlessRunnerHighScore';
+
+        let highScore = 0;
+        try {
+            highScore = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 0;
+        } catch (e) {
+            highScore = 0;
+        }
+        bestEl.textContent = highScore;
+
+        let player, obstacles, obstacleTimer, score, speed, groundScroll, gameOver, started, animTick;
+
+        function scheduleNextObstacle() {
+            const minGap = 280;
+            const extraGap = Math.random() * 220;
+            obstacleTimer = (minGap + extraGap) / speed;
+        }
+
+        function reset() {
+            player = { y: GROUND_Y - PLAYER_HEIGHT, vy: 0, jumping: false, ducking: false };
+            obstacles = [];
+            score = 0;
+            speed = BASE_SPEED;
+            groundScroll = 0;
+            gameOver = false;
+            started = false;
+            animTick = 0;
+            scoreEl.textContent = '0';
+            statusEl.textContent = 'Get ready!';
+            scheduleNextObstacle();
+        }
+
+        function playerHitbox() {
+            if (player.ducking && !player.jumping) {
+                return { x: PLAYER_X - 6, y: GROUND_Y - DUCK_HEIGHT, width: PLAYER_WIDTH + 12, height: DUCK_HEIGHT };
+            }
+            return { x: PLAYER_X, y: player.y, width: PLAYER_WIDTH, height: PLAYER_HEIGHT };
+        }
+
+        function jump() {
+            if (!started) started = true;
+            if (!player.jumping && !gameOver) {
+                player.jumping = true;
+                player.vy = JUMP_VELOCITY;
+            }
+        }
+
+        function setDuck(state) {
+            if (!started) started = true;
+            player.ducking = state && !player.jumping;
+        }
+
+        function spawnObstacle() {
+            const roll = Math.random();
+            let obstacle;
+            if (roll < 0.4) obstacle = { type: 'cactus-small', width: 18, height: 32 };
+            else if (roll < 0.75) obstacle = { type: 'cactus-large', width: 30, height: 46 };
+            else obstacle = { type: 'bird', width: 34, height: 22 };
+
+            obstacle.x = canvas.width + 20;
+            obstacle.y = obstacle.type === 'bird'
+                ? GROUND_Y - DUCK_HEIGHT - obstacle.height - 4
+                : GROUND_Y - obstacle.height;
+            obstacles.push(obstacle);
+            scheduleNextObstacle();
+        }
+
+        function checkCollision(a, o) {
+            return a.x < o.x + o.width && a.x + a.width > o.x && a.y < o.y + o.height && a.y + a.height > o.y;
+        }
+
+        function endGame() {
+            gameOver = true;
+            const finalScore = Math.floor(score);
+            if (finalScore > highScore) {
+                highScore = finalScore;
+                bestEl.textContent = highScore;
+                try { localStorage.setItem(STORAGE_KEY, String(highScore)); } catch (e) { /* storage unavailable */ }
+            }
+            statusEl.textContent = 'Game over';
+        }
+
+        function update() {
+            if (!started || gameOver) return;
+            animTick++;
+
+            speed = Math.min(MAX_SPEED, BASE_SPEED + score * 0.0015);
+            score += speed * 0.05;
+            scoreEl.textContent = Math.floor(score);
+            groundScroll += speed;
+            statusEl.textContent = 'Running!';
+
+            if (player.jumping) {
+                player.vy += GRAVITY;
+                player.y += player.vy;
+                if (player.y >= GROUND_Y - PLAYER_HEIGHT) {
+                    player.y = GROUND_Y - PLAYER_HEIGHT;
+                    player.jumping = false;
+                    player.vy = 0;
+                }
+            } else {
+                player.y = GROUND_Y - PLAYER_HEIGHT;
+            }
+
+            obstacleTimer--;
+            if (obstacleTimer <= 0) spawnObstacle();
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const o = obstacles[i];
+                o.x -= speed;
+                if (o.x + o.width < 0) obstacles.splice(i, 1);
+            }
+
+            const hitbox = playerHitbox();
+            for (const o of obstacles) {
+                if (checkCollision(hitbox, o)) { endGame(); return; }
+            }
+        }
     </script>
 </body>
 </html>
