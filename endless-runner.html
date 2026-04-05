@@ -177,6 +177,130 @@
                 if (checkCollision(hitbox, o)) { endGame(); return; }
             }
         }
+
+        function skyColors() {
+            const cycle = Math.floor(score / 500) % 2;
+            return cycle === 0
+                ? { sky: '#87ceeb', ground: '#5a3a1a', fg: '#333' }
+                : { sky: '#0a1128', ground: '#1a1a2e', fg: '#eee' };
+        }
+
+        function drawGround(colors) {
+            ctx.strokeStyle = colors.fg;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.stroke();
+
+            const dashSpacing = 40;
+            const offset = groundScroll % dashSpacing;
+            ctx.lineWidth = 3;
+            for (let x = -offset; x < canvas.width; x += dashSpacing) {
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y + 6);
+                ctx.lineTo(x + 16, GROUND_Y + 6);
+                ctx.stroke();
+            }
+        }
+
+        function drawPlayer(colors) {
+            const hitbox = playerHitbox();
+            ctx.fillStyle = colors.fg;
+            ctx.beginPath();
+            ctx.roundRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height, 6);
+            ctx.fill();
+
+            ctx.fillStyle = colors.sky;
+            ctx.beginPath();
+            ctx.arc(hitbox.x + hitbox.width * 0.75, hitbox.y + hitbox.height * 0.25, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (!player.jumping && started) {
+                const legPhase = Math.floor(animTick / 6) % 2;
+                ctx.strokeStyle = colors.fg;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                if (legPhase === 0) {
+                    ctx.moveTo(hitbox.x + 6, hitbox.y + hitbox.height);
+                    ctx.lineTo(hitbox.x + 2, hitbox.y + hitbox.height + 8);
+                    ctx.moveTo(hitbox.x + hitbox.width - 6, hitbox.y + hitbox.height);
+                    ctx.lineTo(hitbox.x + hitbox.width - 2, hitbox.y + hitbox.height + 4);
+                } else {
+                    ctx.moveTo(hitbox.x + 6, hitbox.y + hitbox.height);
+                    ctx.lineTo(hitbox.x + 2, hitbox.y + hitbox.height + 4);
+                    ctx.moveTo(hitbox.x + hitbox.width - 6, hitbox.y + hitbox.height);
+                    ctx.lineTo(hitbox.x + hitbox.width - 2, hitbox.y + hitbox.height + 8);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function drawObstacle(o, colors) {
+            if (o.type === 'bird') {
+                const flap = Math.floor(animTick / 8) % 2 === 0 ? -8 : 8;
+                ctx.strokeStyle = colors.fg;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y + o.height / 2);
+                ctx.lineTo(o.x + o.width / 2, o.y + o.height / 2 + flap);
+                ctx.lineTo(o.x + o.width, o.y + o.height / 2);
+                ctx.stroke();
+                ctx.fillStyle = colors.fg;
+                ctx.beginPath();
+                ctx.ellipse(o.x + o.width / 2, o.y + o.height / 2, o.width * 0.3, o.height * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#3a9d4f';
+                ctx.fillRect(o.x, o.y, o.width, o.height);
+                ctx.strokeStyle = colors.fg;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(o.x, o.y, o.width, o.height);
+                const spikes = o.type === 'cactus-large' ? 3 : 2;
+                for (let i = 0; i < spikes; i++) {
+                    const sx = o.x + (i + 0.5) * (o.width / spikes);
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 4, o.y);
+                    ctx.lineTo(sx, o.y - 6);
+                    ctx.lineTo(sx + 4, o.y);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function draw() {
+            const colors = skyColors();
+            ctx.fillStyle = colors.sky;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGround(colors);
+            for (const o of obstacles) drawObstacle(o, colors);
+            drawPlayer(colors);
+
+            if (!started) {
+                ctx.fillStyle = colors.fg;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Press Space or click to start', canvas.width / 2, 60);
+            }
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f44';
+                ctx.font = 'bold 32px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 15);
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px Arial';
+                ctx.fillText(`Score: ${Math.floor(score)}   Best: ${highScore}`, canvas.width / 2, canvas.height / 2 + 20);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('Press Space or click to try again', canvas.width / 2, canvas.height / 2 + 48);
+            }
+        }
     </script>
 </body>
 </html>
