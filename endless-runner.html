@@ -301,6 +301,36 @@
                 ctx.fillText('Press Space or click to try again', canvas.width / 2, canvas.height / 2 + 48);
             }
         }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleAction() {
+            if (gameOver) { reset(); return; }
+            jump();
+        }
+
+        canvas.addEventListener('click', handleAction);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.key === 'ArrowUp') {
+                handleAction();
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown') {
+                setDuck(true);
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowDown') setDuck(false);
+        });
+
+        reset();
+        gameLoop();
     </script>
 </body>
 </html>
