@@ -110,6 +110,19 @@
             return canvas.height;
         }
 
+        function init() {
+            ship = { x: canvas.width / 2, y: 60, vx: 0, vy: 0, angle: 0, fuel: FUEL_MAX, thrusting: false };
+            terrain = generateTerrain();
+            particles = [];
+            score = 0;
+            gameOver = false;
+            landed = false;
+            keys = {};
+            scoreEl.textContent = score;
+            statusEl.textContent = 'Land on a pad';
+            updateHud();
+        }
+
         function updateHud() {
             fuelEl.textContent = Math.round(ship.fuel);
             speedEl.textContent = Math.hypot(ship.vx, ship.vy).toFixed(1);
@@ -121,6 +134,63 @@
                 const speed = 0.5 + Math.random() * 3;
                 particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 30 + Math.random() * 20 });
             }
+        }
+
+        function resolveLanding(terrainY) {
+            ship.y = terrainY - SHIP_SIZE / 2;
+            const speed = Math.hypot(ship.vx, ship.vy);
+            const tilt = Math.abs(normalizeAngle(ship.angle));
+            const pad = terrain.pads.find(p => ship.x >= p.x1 && ship.x <= p.x2);
+
+            gameOver = true;
+            if (pad && speed <= MAX_LANDING_SPEED && tilt <= MAX_LANDING_ANGLE) {
+                landed = true;
+                const bonus = Math.round(pad.multiplier * 100 + ship.fuel * 2);
+                score = bonus;
+                scoreEl.textContent = score;
+                statusEl.textContent = `Landed safely! +${bonus}`;
+            } else {
+                landed = false;
+                if (!pad) statusEl.textContent = 'Crashed! Missed the pad';
+                else if (speed > MAX_LANDING_SPEED) statusEl.textContent = 'Crashed! Too fast';
+                else statusEl.textContent = 'Crashed! Too tilted';
+                spawnExplosion(ship.x, ship.y);
+            }
+        }
+
+        function update() {
+            if (gameOver) {
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.vy += GRAVITY * 0.5; p.life--;
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+                return;
+            }
+
+            if (keys['ArrowLeft'] || keys['a']) ship.angle -= ROTATION_SPEED;
+            if (keys['ArrowRight'] || keys['d']) ship.angle += ROTATION_SPEED;
+
+            ship.thrusting = (keys['ArrowUp'] || keys['w']) && ship.fuel > 0;
+            if (ship.thrusting) {
+                ship.vx += Math.sin(ship.angle) * THRUST;
+                ship.vy -= Math.cos(ship.angle) * THRUST;
+                ship.fuel = Math.max(0, ship.fuel - FUEL_USE);
+            }
+
+            ship.vy += GRAVITY;
+            ship.x += ship.vx;
+            ship.y += ship.vy;
+
+            if (ship.x < 10) { ship.x = 10; ship.vx = 0; }
+            if (ship.x > canvas.width - 10) { ship.x = canvas.width - 10; ship.vx = 0; }
+
+            const terrainY = getTerrainHeightAt(ship.x);
+            if (ship.y + SHIP_SIZE / 2 >= terrainY) {
+                resolveLanding(terrainY);
+            }
+
+            updateHud();
         }
     </script>
 </body>
