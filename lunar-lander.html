@@ -192,6 +192,120 @@
 
             updateHud();
         }
+
+        function drawTerrain() {
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (const p of terrain.points) ctx.lineTo(p.x, p.y);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fillStyle = '#3a3a4a';
+            ctx.fill();
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(terrain.points[0].x, terrain.points[0].y);
+            for (const p of terrain.points) ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+
+            for (const pad of terrain.pads) {
+                ctx.strokeStyle = pad.multiplier === 3 ? '#ffd700' : pad.multiplier === 2 ? '#4ade80' : '#7ee8ff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(pad.x1, pad.y);
+                ctx.lineTo(pad.x2, pad.y);
+                ctx.stroke();
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`x${pad.multiplier}`, (pad.x1 + pad.x2) / 2, pad.y - 8);
+            }
+        }
+
+        function drawShip() {
+            ctx.save();
+            ctx.translate(ship.x, ship.y);
+            ctx.rotate(ship.angle);
+
+            if (ship.thrusting) {
+                ctx.fillStyle = Math.random() < 0.5 ? '#ff9f40' : '#ffd700';
+                ctx.beginPath();
+                ctx.moveTo(-SHIP_SIZE * 0.35, SHIP_SIZE * 0.6);
+                ctx.lineTo(0, SHIP_SIZE * 0.6 + 10 + Math.random() * 6);
+                ctx.lineTo(SHIP_SIZE * 0.35, SHIP_SIZE * 0.6);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#e8e8e8';
+            ctx.beginPath();
+            ctx.moveTo(0, -SHIP_SIZE * 0.7);
+            ctx.lineTo(-SHIP_SIZE * 0.55, SHIP_SIZE * 0.6);
+            ctx.lineTo(SHIP_SIZE * 0.55, SHIP_SIZE * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            for (const p of particles) {
+                ctx.globalAlpha = Math.max(0, p.life / 50);
+                ctx.fillStyle = '#ff9f40';
+                ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawTerrain();
+            if (!gameOver || landed) drawShip();
+            drawParticles();
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = landed ? '#4ade80' : '#f44';
+                ctx.font = 'bold 30px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(landed ? 'LANDED!' : 'CRASHED', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px Arial';
+                ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 16);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('Press Space to try again', canvas.width / 2, canvas.height / 2 + 46);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) {
+                if (e.code === 'Space') init();
+                return;
+            }
+            keys[e.key] = true;
+            if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        init();
+        gameLoop();
     </script>
 </body>
 </html>
