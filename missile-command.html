@@ -45,6 +45,43 @@
     <div id="instructions">Move the mouse to aim, click to fire an interceptor from your nearest loaded silo. Protect your cities!</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const levelEl = document.getElementById('level');
+
+        const GROUND_Y = 440;
+        const BATTERY_X = [50, 320, 590];
+        const CITY_X = [120, 190, 260, 380, 450, 520];
+        const BASE_AMMO = 10;
+
+        let score, level, gameOver;
+        let batteries, cities;
+        let enemyMissiles, playerMissiles, explosions;
+        let waveTotal, waveSpawned, spawnTimer;
+        let mouseX, mouseY;
+        let animTick;
+
+        function citiesAlive() {
+            return cities.filter(c => c.alive).length;
+        }
+
+        function init() {
+            batteries = BATTERY_X.map(x => ({ x, y: GROUND_Y, ammo: BASE_AMMO, alive: true }));
+            cities = CITY_X.map(x => ({ x, y: GROUND_Y, alive: true }));
+            enemyMissiles = [];
+            playerMissiles = [];
+            explosions = [];
+            waveTotal = 6 + level * 2;
+            waveSpawned = 0;
+            spawnTimer = 60;
+            mouseX = canvas.width / 2;
+            mouseY = canvas.height / 2;
+            animTick = 0;
+            gameOver = false;
+            livesEl.textContent = citiesAlive();
+        }
     </script>
 </body>
 </html>
