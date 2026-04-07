@@ -70,6 +70,46 @@
             return a;
         }
 
+        function generateTerrain() {
+            const segments = 40;
+            const segWidth = canvas.width / segments;
+            const points = [];
+            let height = canvas.height * 0.65;
+            for (let i = 0; i <= segments; i++) {
+                height += (Math.random() - 0.5) * 36;
+                height = Math.max(canvas.height * 0.45, Math.min(canvas.height * 0.88, height));
+                points.push({ x: i * segWidth, y: height });
+            }
+
+            const pads = [];
+            const used = new Set();
+            const multipliers = [3, 2, 1];
+            for (let p = 0; p < 3; p++) {
+                let idx;
+                let tries = 0;
+                do {
+                    idx = 3 + Math.floor(Math.random() * (segments - 6));
+                    tries++;
+                } while (tries < 30 && [...used].some(u => Math.abs(u - idx) < 3));
+                used.add(idx);
+                points[idx + 1].y = points[idx].y;
+                pads.push({ x1: points[idx].x, x2: points[idx + 1].x, y: points[idx].y, multiplier: multipliers[p] });
+            }
+
+            return { points, pads };
+        }
+
+        function getTerrainHeightAt(x) {
+            const pts = terrain.points;
+            for (let i = 0; i < pts.length - 1; i++) {
+                if (x >= pts[i].x && x <= pts[i + 1].x) {
+                    const t = (x - pts[i].x) / (pts[i + 1].x - pts[i].x);
+                    return pts[i].y + (pts[i + 1].y - pts[i].y) * t;
+                }
+            }
+            return canvas.height;
+        }
+
         function updateHud() {
             fuelEl.textContent = Math.round(ship.fuel);
             speedEl.textContent = Math.hypot(ship.vx, ship.vy).toFixed(1);
