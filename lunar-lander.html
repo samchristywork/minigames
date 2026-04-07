@@ -45,6 +45,43 @@
     <div id="instructions">Left/Right or A/D to rotate, Up or W to thrust. Land gently and level on a highlighted pad. Wider pads are easier but worth less.</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const fuelEl = document.getElementById('fuel');
+        const speedEl = document.getElementById('speed');
+        const scoreEl = document.getElementById('score');
+        const statusEl = document.getElementById('status');
+
+        const GRAVITY = 0.02;
+        const THRUST = 0.05;
+        const ROTATION_SPEED = 0.05;
+        const FUEL_MAX = 150;
+        const FUEL_USE = 0.4;
+        const MAX_LANDING_SPEED = 2.5;
+        const MAX_LANDING_ANGLE = 0.3;
+        const SHIP_SIZE = 14;
+
+        let ship, terrain, particles, score, gameOver, landed, keys;
+
+        function normalizeAngle(a) {
+            a = a % (Math.PI * 2);
+            if (a > Math.PI) a -= Math.PI * 2;
+            if (a < -Math.PI) a += Math.PI * 2;
+            return a;
+        }
+
+        function updateHud() {
+            fuelEl.textContent = Math.round(ship.fuel);
+            speedEl.textContent = Math.hypot(ship.vx, ship.vy).toFixed(1);
+        }
+
+        function spawnExplosion(x, y) {
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.5 + Math.random() * 3;
+                particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 30 + Math.random() * 20 });
+            }
+        }
     </script>
 </body>
 </html>
