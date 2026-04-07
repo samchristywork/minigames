@@ -84,16 +84,18 @@
             const pads = [];
             const used = new Set();
             const multipliers = [3, 2, 1];
+            const padSpans = { 3: 1, 2: 2, 1: 3 };
             for (let p = 0; p < 3; p++) {
+                const span = padSpans[multipliers[p]];
                 let idx;
                 let tries = 0;
                 do {
-                    idx = 3 + Math.floor(Math.random() * (segments - 6));
+                    idx = 3 + Math.floor(Math.random() * (segments - span - 6));
                     tries++;
-                } while (tries < 30 && [...used].some(u => Math.abs(u - idx) < 3));
-                used.add(idx);
-                points[idx + 1].y = points[idx].y;
-                pads.push({ x1: points[idx].x, x2: points[idx + 1].x, y: points[idx].y, multiplier: multipliers[p] });
+                } while (tries < 30 && [...used].some(u => Math.abs(u - idx) < span + 3));
+                for (let s = idx; s <= idx + span; s++) used.add(s);
+                for (let s = idx + 1; s <= idx + span; s++) points[s].y = points[idx].y;
+                pads.push({ x1: points[idx].x, x2: points[idx + span].x, y: points[idx].y, multiplier: multipliers[p] });
             }
 
             return { points, pads };
