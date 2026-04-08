@@ -82,6 +82,88 @@
             gameOver = false;
             livesEl.textContent = citiesAlive();
         }
+
+        function pickTarget() {
+            const options = [];
+            for (const c of cities) if (c.alive) options.push({ x: c.x, y: GROUND_Y, type: 'city', ref: c });
+            for (const b of batteries) if (b.alive) options.push({ x: b.x, y: GROUND_Y, type: 'battery', ref: b });
+            if (options.length === 0) return null;
+            return options[Math.floor(Math.random() * options.length)];
+        }
+
+        function spawnEnemyMissile() {
+            const target = pickTarget();
+            if (!target) return;
+
+            const x = Math.random() * canvas.width;
+            const y = 0;
+            const speed = 0.7 + level * 0.08;
+            const dx = target.x - x;
+            const dy = target.y - y;
+            const dist = Math.hypot(dx, dy);
+
+            const isMirv = level >= 3 && Math.random() < 0.25;
+
+            enemyMissiles.push({
+                x, y,
+                vx: (dx / dist) * speed,
+                vy: (dy / dist) * speed,
+                target,
+                trailX: x, trailY: y,
+                mirv: isMirv,
+                mirvY: isMirv ? 120 + Math.random() * 150 : -1,
+                hasSplit: false
+            });
+        }
+
+        function splitMissile(m) {
+            m.hasSplit = true;
+            for (let i = 0; i < 2; i++) {
+                const target = pickTarget();
+                if (!target) continue;
+                const dx = target.x - m.x;
+                const dy = target.y - m.y;
+                const dist = Math.hypot(dx, dy);
+                const speed = 0.9 + level * 0.08;
+                enemyMissiles.push({
+                    x: m.x, y: m.y,
+                    vx: (dx / dist) * speed,
+                    vy: (dy / dist) * speed,
+                    target,
+                    trailX: m.x, trailY: m.y,
+                    mirv: false,
+                    mirvY: -1,
+                    hasSplit: true
+                });
+            }
+        }
+
+        function fireInterceptor(tx, ty) {
+            let best = null;
+            let bestDist = Infinity;
+            for (const b of batteries) {
+                if (!b.alive || b.ammo <= 0) continue;
+                const d = Math.abs(b.x - tx);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = b;
+                }
+            }
+            if (!best) return;
+
+            best.ammo--;
+            const dx = tx - best.x;
+            const dy = ty - best.y;
+            const dist = Math.hypot(dx, dy);
+            const speed = 6;
+            playerMissiles.push({
+                x: best.x, y: best.y,
+                vx: (dx / dist) * speed,
+                vy: (dy / dist) * speed,
+                targetX: tx, targetY: ty,
+                trailX: best.x, trailY: best.y
+            });
+        }
     </script>
 </body>
 </html>
