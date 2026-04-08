@@ -427,6 +427,45 @@
                 ctx.fillText('Press Space to restart', canvas.width / 2, canvas.height / 2 + 55);
             }
         }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function restart() {
+            score = 0;
+            level = 1;
+            scoreEl.textContent = score;
+            levelEl.textContent = level;
+            init();
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const tx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const ty = (e.clientY - rect.top) * (canvas.height / rect.height);
+            fireInterceptor(tx, Math.min(ty, GROUND_Y));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (gameOver && e.code === 'Space') restart();
+        });
+
+        score = 0;
+        level = 1;
+        scoreEl.textContent = score;
+        levelEl.textContent = level;
+        init();
+        gameLoop();
     </script>
 </body>
 </html>
