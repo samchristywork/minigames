@@ -45,6 +45,70 @@
     <div id="instructions">Click a piece to see its legal moves, then click a highlighted square to play it. Pawns always promote to queen. Castling and en passant are supported.</div>
 
     <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+
+        const SIZE = 8;
+        const CELL = 50;
+        const BOARD_X = 10;
+        const BOARD_Y = 10;
+        const BOARD_PX = SIZE * CELL;
+        const BUTTON_Y = BOARD_Y + BOARD_PX + 12;
+        const BUTTON_H = 44;
+        const AI_DEPTH = 3;
+        const PLAYER_COLOR = 'white';
+        const AI_COLOR = 'black';
+
+        const ORTHO_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        const DIAG_DIRS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        const ALL8_DIRS = ORTHO_DIRS.concat(DIAG_DIRS);
+        const KNIGHT_OFFSETS = [[-2, -1], [-2, 1], [2, -1], [2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2]];
+        const PIECE_VALUES = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
+        const UNICODE = {
+            white: { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
+            black: { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' }
+        };
+
+        const BUTTONS = [{ label: 'New Game', x: (420 - 160) / 2, w: 160 }];
+
+        let board, gameState, turn, gameOver, selected, legalDestinations, aiDelay;
+
+        function inBounds(r, c) { return r >= 0 && r < SIZE && c >= 0 && c < SIZE; }
+        function opponentOf(color) { return color === 'white' ? 'black' : 'white'; }
+
+        function setupBoard() {
+            const b = [];
+            for (let r = 0; r < SIZE; r++) b.push(new Array(SIZE).fill(null));
+            const backRank = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+            for (let c = 0; c < SIZE; c++) {
+                b[0][c] = { type: backRank[c], color: 'black' };
+                b[1][c] = { type: 'pawn', color: 'black' };
+                b[6][c] = { type: 'pawn', color: 'white' };
+                b[7][c] = { type: backRank[c], color: 'white' };
+            }
+            return b;
+        }
+
+        function cloneBoard(b) {
+            return b.map(row => row.map(cell => cell ? { ...cell } : null));
+        }
+
+        function cloneGameState(gs) {
+            return {
+                castlingRights: { white: { ...gs.castlingRights.white }, black: { ...gs.castlingRights.black } },
+                enPassantTarget: gs.enPassantTarget ? { ...gs.enPassantTarget } : null
+            };
+        }
+
+        function findKing(b, color) {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (b[r][c] && b[r][c].type === 'king' && b[r][c].color === color) return { r, c };
+                }
+            }
+            return null;
+        }
     </script>
 </body>
 </html>
