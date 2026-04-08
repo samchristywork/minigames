@@ -164,6 +164,92 @@
                 trailX: best.x, trailY: best.y
             });
         }
+
+        function addExplosion(x, y, maxRadius) {
+            explosions.push({ x, y, radius: 4, maxRadius: maxRadius || 34, phase: 'grow', timer: 0 });
+        }
+
+        function updateExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const e = explosions[i];
+                e.timer++;
+                if (e.phase === 'grow') {
+                    e.radius += 2.2;
+                    if (e.radius >= e.maxRadius) e.phase = 'hold';
+                } else if (e.phase === 'hold') {
+                    if (e.timer > 25) e.phase = 'shrink';
+                } else {
+                    e.radius -= 1.5;
+                    if (e.radius <= 0) explosions.splice(i, 1);
+                }
+            }
+        }
+
+        function updatePlayerMissiles() {
+            for (let i = playerMissiles.length - 1; i >= 0; i--) {
+                const m = playerMissiles[i];
+                m.trailX = m.x;
+                m.trailY = m.y;
+                m.x += m.vx;
+                m.y += m.vy;
+                const dx = m.targetX - m.x;
+                const dy = m.targetY - m.y;
+                if (Math.hypot(dx, dy) < 8 || m.y <= 0) {
+                    addExplosion(m.targetX, m.targetY);
+                    playerMissiles.splice(i, 1);
+                }
+            }
+        }
+
+        function updateEnemyMissiles() {
+            for (let i = enemyMissiles.length - 1; i >= 0; i--) {
+                const m = enemyMissiles[i];
+
+                if (m.mirv && !m.hasSplit && m.y >= m.mirvY) {
+                    splitMissile(m);
+                    enemyMissiles.splice(i, 1);
+                    continue;
+                }
+
+                m.trailX = m.x;
+                m.trailY = m.y;
+                m.x += m.vx;
+                m.y += m.vy;
+
+                let hitExplosion = false;
+                for (const e of explosions) {
+                    if (Math.hypot(m.x - e.x, m.y - e.y) < e.radius) {
+                        hitExplosion = true;
+                        break;
+                    }
+                }
+                if (hitExplosion) {
+                    score += m.hasSplit ? 50 : 100;
+                    scoreEl.textContent = score;
+                    addExplosion(m.x, m.y, 18);
+                    enemyMissiles.splice(i, 1);
+                    continue;
+                }
+
+                const dx = m.target.x - m.x;
+                const dy = m.target.y - m.y;
+                if (Math.hypot(dx, dy) < 5 || m.y >= GROUND_Y) {
+                    if (m.target.type === 'city') {
+                        m.target.ref.alive = false;
+                    } else {
+                        m.target.ref.ammo = 0;
+                        m.target.ref.alive = false;
+                    }
+                    addExplosion(m.target.x, GROUND_Y, 24);
+                    enemyMissiles.splice(i, 1);
+                    livesEl.textContent = citiesAlive();
+
+                    if (citiesAlive() === 0) {
+                        gameOver = true;
+                    }
+                }
+            }
+        }
     </script>
 </body>
 </html>
