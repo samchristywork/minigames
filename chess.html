@@ -109,6 +109,53 @@
             }
             return null;
         }
+
+        function isSquareAttacked(b, r, c, byColor) {
+            const pawnRow = byColor === 'white' ? r + 1 : r - 1;
+            for (const pawnCol of [c - 1, c + 1]) {
+                if (inBounds(pawnRow, pawnCol)) {
+                    const p = b[pawnRow][pawnCol];
+                    if (p && p.type === 'pawn' && p.color === byColor) return true;
+                }
+            }
+            for (const [dr, dc] of KNIGHT_OFFSETS) {
+                const nr = r + dr, nc = c + dc;
+                if (inBounds(nr, nc)) {
+                    const p = b[nr][nc];
+                    if (p && p.type === 'knight' && p.color === byColor) return true;
+                }
+            }
+            for (const [dr, dc] of ALL8_DIRS) {
+                const nr = r + dr, nc = c + dc;
+                if (inBounds(nr, nc)) {
+                    const p = b[nr][nc];
+                    if (p && p.type === 'king' && p.color === byColor) return true;
+                }
+            }
+            for (const [dr, dc] of DIAG_DIRS) {
+                let nr = r + dr, nc = c + dc;
+                while (inBounds(nr, nc)) {
+                    const p = b[nr][nc];
+                    if (p) {
+                        if (p.color === byColor && (p.type === 'bishop' || p.type === 'queen')) return true;
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+            for (const [dr, dc] of ORTHO_DIRS) {
+                let nr = r + dr, nc = c + dc;
+                while (inBounds(nr, nc)) {
+                    const p = b[nr][nc];
+                    if (p) {
+                        if (p.color === byColor && (p.type === 'rook' || p.type === 'queen')) return true;
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+            return false;
+        }
     </script>
 </body>
 </html>
