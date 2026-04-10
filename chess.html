@@ -330,6 +330,52 @@
                 return best;
             }
         }
+
+        function chooseAiMove() {
+            const moves = generateLegalMoves(board, gameState, AI_COLOR);
+            moves.sort((a, c) => (c.capture ? 1 : 0) - (a.capture ? 1 : 0));
+            let bestScore = -Infinity, bestMoves = [];
+            for (const mv of moves) {
+                const nb = cloneBoard(board);
+                const ngs = cloneGameState(gameState);
+                applyMove(nb, ngs, mv);
+                const score = minimaxChess(nb, ngs, AI_DEPTH - 1, -Infinity, Infinity, false, AI_COLOR, PLAYER_COLOR);
+                if (score > bestScore) { bestScore = score; bestMoves = [mv]; }
+                else if (score === bestScore) bestMoves.push(mv);
+            }
+            return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+        }
+
+        function setup() {
+            board = setupBoard();
+            gameState = { castlingRights: { white: { kingSide: true, queenSide: true }, black: { kingSide: true, queenSide: true } }, enPassantTarget: null };
+            turn = PLAYER_COLOR;
+            gameOver = false;
+            selected = null;
+            legalDestinations = [];
+            aiDelay = 0;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const moves = generateLegalMoves(board, gameState, turn);
+            const kingPos = findKing(board, turn);
+            const inCheck = isSquareAttacked(board, kingPos.r, kingPos.c, opponentOf(turn));
+
+            if (moves.length === 0) {
+                gameOver = true;
+                if (inCheck) statusEl.textContent = turn === PLAYER_COLOR ? 'Checkmate! AI wins.' : 'Checkmate! You win!';
+                else statusEl.textContent = 'Stalemate. Draw.';
+                return;
+            }
+
+            if (turn === PLAYER_COLOR) {
+                statusEl.textContent = inCheck ? 'Check! Your turn.' : 'Your turn';
+            } else {
+                statusEl.textContent = inCheck ? "Check! AI's turn." : 'AI is thinking...';
+                aiDelay = 20;
+            }
+        }
     </script>
 </body>
 </html>
