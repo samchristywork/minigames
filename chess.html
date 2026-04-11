@@ -376,6 +376,46 @@
                 aiDelay = 20;
             }
         }
+
+        function makeMove(move) {
+            applyMove(board, gameState, move);
+            turn = opponentOf(turn);
+            selected = null;
+            legalDestinations = [];
+            updateStatus();
+        }
+
+        function handleSquareClick(r, c) {
+            if (gameOver || turn !== PLAYER_COLOR) return;
+            const piece = board[r][c];
+
+            if (selected) {
+                const move = legalDestinations.find(mv => mv.to.r === r && mv.to.c === c);
+                if (move) { makeMove(move); return; }
+                if (piece && piece.color === PLAYER_COLOR) {
+                    selected = { r, c };
+                    legalDestinations = generateLegalMoves(board, gameState, PLAYER_COLOR).filter(mv => mv.from.r === r && mv.from.c === c);
+                    return;
+                }
+                selected = null;
+                legalDestinations = [];
+                return;
+            }
+
+            if (piece && piece.color === PLAYER_COLOR) {
+                selected = { r, c };
+                legalDestinations = generateLegalMoves(board, gameState, PLAYER_COLOR).filter(mv => mv.from.r === r && mv.from.c === c);
+            }
+        }
+
+        function update() {
+            if (gameOver || turn !== AI_COLOR) return;
+            aiDelay--;
+            if (aiDelay <= 0) {
+                const move = chooseAiMove();
+                if (move) makeMove(move);
+            }
+        }
     </script>
 </body>
 </html>
